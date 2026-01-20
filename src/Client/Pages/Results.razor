@@ -421,10 +421,66 @@
 
         <!-- Actions - shown in both views but hidden in print for investor view -->
         <div class="results-actions">
-            <button class="btn-primary" @onclick="DownloadRoadmap">Download 90-Day Roadmap</button>
-            <button class="btn-secondary" @onclick="ViewInvestorBrief">View Investor Brief</button>
-            <button class="btn-secondary" @onclick="BookCall">Book Strategy Call</button>
+            <button class="btn-primary btn-book-call" @onclick="OpenBookingModal">
+                📅 Book Strategy Call with Tim
+            </button>
+            <button class="btn-secondary" @onclick="DownloadRoadmap">📄 Download 90-Day Roadmap</button>
         </div>
+
+        <!-- Booking Modal -->
+        @if (ShowBookingModal)
+        {
+            <div class="booking-modal-overlay" @onclick="CloseBookingModal">
+                <div class="booking-modal" @onclick:stopPropagation="true">
+                    <button class="modal-close" @onclick="CloseBookingModal">✕</button>
+                    
+                    <div class="booking-modal-header">
+                        <h2>Schedule Your Strategy Call</h2>
+                        <p class="booking-tagline">30-minute strategy session with Tim</p>
+                    </div>
+
+                    <div class="booking-content">
+                        <div class="booking-info">
+                            <div class="info-item">
+                                <span class="info-label">Duration:</span>
+                                <span class="info-value">30 minutes</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Price:</span>
+                                <span class="info-value price">$97</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Format:</span>
+                                <span class="info-value">Video call (Zoom)</span>
+                            </div>
+                        </div>
+
+                        <!-- Calendly Embed -->
+                        <div class="calendly-container">
+                            <iframe 
+                                src="https://calendly.com/timberoth/strategy-call?hide_event_type_details=1&hide_gdpr_banner=1" 
+                                width="100%" 
+                                height="630" 
+                                frameborder="0"
+                                @onload="LogBookingViewEvent">
+                            </iframe>
+                        </div>
+
+                        <div class="booking-footer">
+                            <p class="booking-disclaimer">Payment link will be sent in your confirmation email after scheduling</p>
+                            <button class="btn-close" @onclick="CloseBookingModal">Close</button>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(BookingError))
+                    {
+                        <div class="booking-error">
+                            <p>@BookingError</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
     else
     {
@@ -446,6 +502,8 @@
     private bool DownloadingPdf = false;
     private string DownloadError = "";
     private string ViewMode = "founder"; // "founder" or "investor"
+    private bool ShowBookingModal = false;
+    private string BookingError = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -770,5 +828,39 @@
         // TODO: Open booking modal or navigate to booking
         if (!string.IsNullOrEmpty(SessionId))
             Nav.NavigateTo($"/book-call?session={SessionId}");
+    }
+
+    private void OpenBookingModal()
+    {
+        ShowBookingModal = true;
+        BookingError = "";
+        LogBookingClickEvent();
+        StateHasChanged();
+    }
+
+    private void CloseBookingModal()
+    {
+        ShowBookingModal = false;
+        StateHasChanged();
+    }
+
+    private void LogBookingClickEvent()
+    {
+        // Log booking CTA click event with correlation ID
+        var correlationId = Guid.NewGuid().ToString();
+        Console.WriteLine($"[{correlationId}] Booking CTA clicked - Session: {SessionId}, Timestamp: {DateTime.UtcNow:O}");
+        
+        // TODO: Send telemetry event to backend
+        // Track: founder_id, session_id, source (founder_view/investor_view), timestamp, correlation_id
+    }
+
+    private void LogBookingViewEvent()
+    {
+        // Log when Calendly embed is loaded
+        var correlationId = Guid.NewGuid().ToString();
+        Console.WriteLine($"[{correlationId}] Booking modal opened - Calendly loaded - Session: {SessionId}, Timestamp: {DateTime.UtcNow:O}");
+        
+        // TODO: Send telemetry event to backend
+        // Track: founder_id, session_id, source (founder_view/investor_view), timestamp, correlation_id
     }
 }
