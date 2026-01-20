@@ -1,0 +1,37 @@
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# NuGet
+*.nupkg
+.nuget/
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Test results
+TestResults/
+.coverage
+*.trx
+
+# Environment
+.env
+.env.local
+*.local.json
+
+# Outputs
+_bmad-output/
+dist/
