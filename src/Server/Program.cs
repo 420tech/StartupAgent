@@ -8,6 +8,8 @@ using StartupAgent.Modules.Shared.Services;
 using StartupAgent.Shared.Services.Scoring;
 using StartupAgent.Shared.Services.Narrative;
 using StartupAgent.Shared.Services.Pdf;
+using StartupAgent.Shared.Services.Email;
+using StartupAgent.Shared.Services.Booking;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,6 +88,8 @@ builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IScoringService, ScoringService>();
 builder.Services.AddScoped<INarrativeService, NarrativeService>();
 builder.Services.AddScoped<IRoadmapPdfService, RoadmapPdfService>();
+builder.Services.AddScoped<IBookingEmailService, BookingEmailService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
