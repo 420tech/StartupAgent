@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StartupAgent.Data;
 using StartupAgent.Server.Services.Storage;
+using StartupAgent.Server.Services.Jobs;
 
 namespace StartupAgent.Server.Modules.Decks.Controllers;
 
@@ -11,9 +12,11 @@ namespace StartupAgent.Server.Modules.Decks.Controllers;
 [Authorize(Policy = "ValidFounder")]
 public class DeckUploadController(
     IDeckUploadService uploadService,
+    IDeckAnalysisJobQueue jobQueue,
     ApplicationDbContext context) : ControllerBase
 {
     private readonly IDeckUploadService _uploadService = uploadService;
+    private readonly IDeckAnalysisJobQueue _jobQueue = jobQueue;
     private readonly ApplicationDbContext _context = context;
 
     /// <summary>
@@ -108,7 +111,10 @@ public class DeckUploadController(
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            Console.WriteLine($"Deck upload completed for assessment {assessmentId}: {uploadResult.FileName}");
+            // Queue analysis job
+            await _jobQueue.QueueJobAsync(deckAnalysis.Id, cancellationToken);
+            
+            Console.WriteLine($"Deck upload completed and analysis queued for assessment {assessmentId}: {uploadResult.FileName}");
 
             return Ok(new
             {
@@ -117,7 +123,8 @@ public class DeckUploadController(
                 fileName = uploadResult.FileName,
                 originalFileName = uploadResult.OriginalFileName,
                 fileSizeBytes = uploadResult.FileSizeBytes,
-                uploadedAt = uploadResult.UploadedAt
+                uploadedAt = uploadResult.UploadedAt,
+                status = "Queued for analysis"
             });
         }
         catch (Exception ex)
@@ -176,9 +183,13 @@ public class DeckUploadController(
                 fileName = deckAnalysis.FileName,
                 originalFileName = deckAnalysis.OriginalFileName,
                 fileSizeBytes = deckAnalysis.FileSizeBytes,
-                status = deckAnalysis.Status,
+                status = deckAnalysis.Status.ToString(),
                 uploadedAt = deckAnalysis.CreatedAt,
-                updatedAt = deckAnalysis.UpdatedAt
+                updatedAt = deckAnalysis.UpdatedAt,
+                completedAt = deckAnalysis.CompletedAt,
+                retryCount = deckAnalysis.RetryCount,
+                errorMessage = deckAnalysis.ErrorMessage,
+                hasInsights = !string.IsNullOrEmpty(deckAnalysis.InsightsJson) && deckAnalysis.InsightsJson != "{}"
             });
         }
         catch (Exception ex)
@@ -187,4 +198,62 @@ public class DeckUploadController(
             return StatusCode(500, new { error = "Failed to retrieve deck status" });
         }
     }
+
+    /// <summary>
+    /// Get deck analysis insights
+    /// </summary>
+    [HttpGet("insights/{assessmentId}")]
+    public async Task<IActionResult> GetDeckInsights(
+        string assessmentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var founderIdClaim = User.FindFirst("FounderId");
+            if (founderIdClaim == null)
+            {
+                return Unauthorized(new { error = "Founder ID not found in token" });
+            }
+
+            var founderId = founderIdClaim.Value;
+
+            var assessment = await _context.Assessments
+                .FindAsync(new object[] { Guid.Parse(assessmentId) }, cancellationToken);
+
+            if (assessment == null || assessment.FounderId != founderId)
+            {
+                return NotFound(new { error = "Assessment not found" });
+            }
+
+            var deckAnalysis = await _context.DeckAnalyses
+                .FirstOrDefaultAsync(d => d.AssessmentId == assessment.Id, cancellationToken);
+
+            if (deckAnalysis == null)
+            {
+                return NotFound(new { error = "No deck analysis found" });
+            }
+
+            if (deckAnalysis.Status != StartupAgent.Shared.Models.ReportStatus.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    error = "Analysis not completed",
+                    status = deckAnalysis.Status.ToString()
+                });
+            }
+
+            return Ok(new
+            {
+                insights = deckAnalysis.InsightsJson,
+                status = deckAnalysis.Status.ToString(),
+                completedAt = deckAnalysis.CompletedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error getting deck insights: {ex.Message}");
+            return StatusCode(500, new { error = "Failed to retrieve insights" });
+        }
+    }
 }
+
