@@ -37,14 +37,21 @@ public class ProblemDetailsDto
 }
 
 /// <summary>
-/// Supported user mindsets for adaptive questioning.
+/// Supported founder mindsets for adaptive questioning.
 /// </summary>
 public enum MindsetType
 {
-    FirstTimer,
-    SerialEntrepreneur,
-    BusinessSide,
-    Confident
+    /// <summary>Founder feels overwhelmed by too many priorities.</summary>
+    Overwhelmed,
+
+    /// <summary>Founder feels stuck or blocked on a specific issue.</summary>
+    Stuck,
+
+    /// <summary>Founder is confident but wants to validate assumptions.</summary>
+    ConfidentButUnsure,
+
+    /// <summary>Founder is preparing for fundraising.</summary>
+    PreFundraise
 }
 
 /// <summary>

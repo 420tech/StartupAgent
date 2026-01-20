@@ -74,6 +74,12 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IMagicLinkService, MagicLinkService>();
 builder.Services.AddScoped<IFounderRepository, FounderRepository>();
 builder.Services.AddScoped<IFounderService, FounderService>();
+builder.Services.AddScoped<ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<IAssessmentRepository, AssessmentRepository>();
+builder.Services.AddScoped<IQuestionBankService, QuestionBankService>();
+builder.Services.AddScoped<IMindsetDetectionService, MindsetDetectionService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
