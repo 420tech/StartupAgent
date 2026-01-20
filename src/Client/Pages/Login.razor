@@ -1,0 +1,91 @@
+@page "/login"
+@inject HttpClient HttpClient
+@inject NavigationManager Navigation
+
+<section class="hero">
+    <div class="hero__content">
+        <p class="eyebrow">Authentication</p>
+        <h1>Sign in with magic link</h1>
+        <p class="lede">Enter your email to receive a sign-in link. No password required.</p>
+        
+        @if (_errorMessage is not null)
+        {
+            <div class="alert error">@_errorMessage</div>
+        }
+
+        @if (_successMessage is not null)
+        {
+            <div class="alert success">
+                <p>@_successMessage</p>
+                <p class="muted">Check the server logs for the magic link token, then navigate to <a href="/verify">/verify</a> to paste it.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="max-width: 480px; margin-top: 24px;">
+                <div class="card-body">
+                    <label class="field-label" for="email">Email address</label>
+                    <input id="email" type="email" class="text-input" placeholder="founder@example.com" @bind="_email" @onkeydown="HandleKeyDown" />
+                    <div class="actions">
+                        <button class="btn primary" @onclick="SendMagicLink" disabled="@(_loading || string.IsNullOrWhiteSpace(_email))">
+                            @(_loading ? "Sending..." : "Send magic link")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private string _email = string.Empty;
+    private bool _loading;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private async Task SendMagicLink()
+    {
+        if (string.IsNullOrWhiteSpace(_email))
+        {
+            _errorMessage = "Email is required";
+            return;
+        }
+
+        _loading = true;
+        _errorMessage = null;
+        _successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/magic-link", new { email = _email.Trim() });
+
+            if (response.IsSuccessStatusCode)
+            {
+                _successMessage = $"Magic link sent to {_email}. Check server logs for the token (email delivery not yet implemented).";
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"Failed to send magic link: {response.StatusCode}. {errorText}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMagicLink();
+        }
+    }
+}
