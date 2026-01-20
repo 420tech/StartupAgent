@@ -50,6 +50,11 @@ public class ApplicationDbContext : DbContext
     /// </summary>
     public DbSet<RecoveryEmail> RecoveryEmails { get; set; }
 
+    /// <summary>
+    /// Deck analysis notifications table (success/failure alerts).
+    /// </summary>
+    public DbSet<DeckAnalysisNotification> DeckAnalysisNotifications { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -210,6 +215,35 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => new { e.Status, e.CreatedAt }); // For job processor queries
+            entity.HasIndex(e => e.FounderId);
+
+            // Foreign key to Founder
+            entity.HasOne<Founder>()
+                .WithMany()
+                .HasForeignKey(e => e.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure DeckAnalysisNotification entity
+        modelBuilder.Entity<DeckAnalysisNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DeckAnalysisId).IsRequired().HasMaxLength(36);
+            entity.Property(e => e.FounderId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.NotificationType).IsRequired();
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CorrelationId).IsRequired().HasMaxLength(36);
+            entity.Property(e => e.AttemptCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt);
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.NotificationType);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.Status, e.CreatedAt }); // For job processor queries
+            entity.HasIndex(e => e.CorrelationId);
             entity.HasIndex(e => e.FounderId);
 
             // Foreign key to Founder
