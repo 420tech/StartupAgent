@@ -12,6 +12,8 @@ using StartupAgent.Shared.Services.Email;
 using StartupAgent.Shared.Services.Booking;
 using StartupAgent.Server.Services.Bookings;
 using StartupAgent.Server.Services.Storage;
+using StartupAgent.Server.Services.Jobs;
+using StartupAgent.Server.Services.Analysis;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,6 +97,11 @@ builder.Services.AddScoped<IBookingEmailService, BookingEmailService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingEventTrackingService, BookingEventTrackingService>();
 builder.Services.AddScoped<IDeckUploadService, DeckUploadService>();
+builder.Services.AddScoped<IDeckAnalysisService, DeckAnalysisService>();
+
+// Deck analysis background job processing
+builder.Services.AddSingleton<IDeckAnalysisJobQueue, DeckAnalysisJobQueue>();
+builder.Services.AddHostedService<DeckAnalysisJobProcessor>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
