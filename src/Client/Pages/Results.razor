@@ -41,50 +41,127 @@
             </div>
         </div>
 
-        <!-- Dimension Scores Grid -->
-        <div class="dimensions-section">
-            <h2>Assessment Breakdown</h2>
-            <div class="dimensions-grid">
-                @foreach (var dimension in DiagnosticResults.DimensionScores)
-                {
-                    <div class="dimension-card">
-                        <div class="dimension-header">
-                            <h3>@dimension.DimensionName</h3>
-                            <span class="status-badge @dimension.Status.ToLower()">
-                                @GetStatusLabel(dimension.Status)
-                            </span>
-                        </div>
-                        
-                        <div class="dimension-score">
-                            <div class="score-bar">
-                                <div class="score-fill" style="width: @dimension.Score%"></div>
+        <!-- Dimension Scores Grid or Drill-Down View -->
+        @if (SelectedDimension == null)
+        {
+            <div class="dimensions-section">
+                <h2>Assessment Breakdown</h2>
+                <p class="section-hint">Click any dimension to see detailed evidence and recommendations</p>
+                <div class="dimensions-grid">
+                    @foreach (var dimension in DiagnosticResults.DimensionScores)
+                    {
+                        <div class="dimension-card clickable" @onclick="@(() => ViewDimensionDetails(dimension))">
+                            <div class="dimension-header">
+                                <h3>@dimension.DimensionName</h3>
+                                <span class="status-badge @dimension.Status.ToLower()">
+                                    @GetStatusLabel(dimension.Status)
+                                </span>
                             </div>
-                            <div class="score-number">@dimension.Score</div>
-                        </div>
+                            
+                            <div class="dimension-score">
+                                <div class="score-bar">
+                                    <div class="score-fill" style="width: @dimension.Score%"></div>
+                                </div>
+                                <div class="score-number">@dimension.Score</div>
+                            </div>
 
-                        <div class="confidence-note">
-                            <strong>Assessment:</strong> @dimension.ConfidenceNote
-                        </div>
+                            <div class="confidence-note">
+                                <strong>Assessment:</strong> @dimension.ConfidenceNote
+                            </div>
 
-                        @if (dimension.RisksAndOpportunities.Any())
-                        {
-                            <details class="dimension-details">
-                                <summary>Details & Evidence</summary>
-                                @if (dimension.RisksAndOpportunities.Any())
-                                {
-                                    <ul>
-                                        @foreach (var item in dimension.RisksAndOpportunities)
-                                        {
-                                            <li>@item</li>
-                                        }
-                                    </ul>
-                                }
-                            </details>
-                        }
+                            <div class="view-details-hint">
+                                Click to view evidence & recommendations →
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Drill-Down Detail View -->
+            <div class="dimension-detail-view">
+                <button class="btn-back" @onclick="BackToOverview">
+                    ← Back to Overview
+                </button>
+
+                <div class="detail-header">
+                    <div class="detail-title-row">
+                        <h2>@SelectedDimension.DimensionName</h2>
+                        <span class="status-badge @SelectedDimension.Status.ToLower() large">
+                            @GetStatusLabel(SelectedDimension.Status)
+                        </span>
+                    </div>
+                    
+                    <div class="detail-score-display">
+                        <div class="score-circle">
+                            <div class="score-value">@SelectedDimension.Score</div>
+                            <div class="score-max">/ 100</div>
+                        </div>
+                        <div class="confidence-info">
+                            <div class="confidence-label">Confidence Level</div>
+                            <div class="confidence-value">@SelectedDimension.ConfidenceLevel%</div>
+                            <p class="confidence-description">@SelectedDimension.ConfidenceNote</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evidence Section -->
+                @if (SelectedDimension.EvidenceExcerpts.Any())
+                {
+                    <div class="evidence-section">
+                        <h3>📋 Evidence from Your Answers</h3>
+                        <div class="evidence-list">
+                            @foreach (var evidence in SelectedDimension.EvidenceExcerpts)
+                            {
+                                <div class="evidence-item">
+                                    <span class="evidence-quote">"</span>
+                                    <p>@evidence</p>
+                                </div>
+                            }
+                        </div>
                     </div>
                 }
+
+                <!-- Risks and Opportunities -->
+                @if (SelectedDimension.RisksAndOpportunities.Any())
+                {
+                    <div class="insights-section">
+                        <h3>💡 Key Insights & Recommendations</h3>
+                        <div class="insights-list">
+                            @foreach (var insight in SelectedDimension.RisksAndOpportunities)
+                            {
+                                <div class="insight-item @GetInsightType(insight)">
+                                    <div class="insight-icon">@GetInsightIcon(insight)</div>
+                                    <p>@insight</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="no-insights">
+                        <p>No specific risks or opportunities identified for this dimension.</p>
+                    </div>
+                }
+
+                <!-- Next Steps -->
+                <div class="next-steps-section">
+                    <h3>🎯 Recommended Next Steps</h3>
+                    <ol class="next-steps-list">
+                        @foreach (var step in GetRecommendedSteps(SelectedDimension))
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                </div>
+
+                <button class="btn-primary btn-full" @onclick="BackToOverview">
+                    Return to Full Results
+                </button>
             </div>
-        </div>
+        }
 
         <!-- Top Priorities Section -->
         @if (DiagnosticResults.TopPriorities.Any())
@@ -123,6 +200,7 @@
     public string? SessionId { get; set; }
 
     private DiagnosticResults? DiagnosticResults;
+    private DimensionScore? SelectedDimension;
     private bool Loading = true;
     private bool Error = false;
     private string ErrorMessage = "";
@@ -151,7 +229,7 @@
             // TODO: Call API endpoint
             // DiagnosticResults = await ApiClient.GetResultsAsync(SessionId);
             
-            // Placeholder loading
+            // Placeholder loading with enhanced evidence data
             await Task.Delay(500);
             DiagnosticResults = new DiagnosticResults
             {
@@ -165,9 +243,67 @@
                 TopPriorities = new() { "Go-to-Market", "Traction" },
                 DimensionScores = new()
                 {
-                    new() { DimensionName = "Problem Validation", Score = 82, Status = "Green", ConfidenceLevel = 90, ConfidenceNote = "Strong problem understanding evident." },
-                    new() { DimensionName = "User Research", Score = 75, Status = "Green", ConfidenceLevel = 85, ConfidenceNote = "Adequate user validation." },
-                    new() { DimensionName = "Traction", Score = 45, Status = "Red", ConfidenceLevel = 88, ConfidenceNote = "Early stage - traction needs development." },
+                    new() 
+                    { 
+                        DimensionName = "Problem Validation", 
+                        Score = 82, 
+                        Status = "Green", 
+                        ConfidenceLevel = 90, 
+                        ConfidenceNote = "Strong problem understanding with validated customer pain points.",
+                        EvidenceExcerpts = new() 
+                        { 
+                            "We've conducted 47 customer interviews across 3 market segments",
+                            "Customer feedback shows 8/10 rate current solutions as inadequate",
+                            "Identified clear willingness to pay for proper solution"
+                        },
+                        RisksAndOpportunities = new()
+                        {
+                            "✓ Strong validation foundation established",
+                            "⚠ Consider expanding to adjacent verticals for growth",
+                            "→ Document insights in structured problem statement"
+                        }
+                    },
+                    new() 
+                    { 
+                        DimensionName = "User Research", 
+                        Score = 75, 
+                        Status = "Green", 
+                        ConfidenceLevel = 85, 
+                        ConfidenceNote = "Good user research foundation with room for systematic tracking.",
+                        EvidenceExcerpts = new()
+                        {
+                            "Regular user testing sessions with 5-10 participants weekly",
+                            "Created user personas based on interview data",
+                            "Track feature requests in shared spreadsheet"
+                        },
+                        RisksAndOpportunities = new()
+                        {
+                            "✓ Consistent research cadence in place",
+                            "⚠ Research insights not centralized in product roadmap",
+                            "→ Implement structured feedback loop with product team"
+                        }
+                    },
+                    new() 
+                    { 
+                        DimensionName = "Traction", 
+                        Score = 45, 
+                        Status = "Red", 
+                        ConfidenceLevel = 88, 
+                        ConfidenceNote = "Early stage with limited traction - needs focused GTM execution.",
+                        EvidenceExcerpts = new()
+                        {
+                            "12 pilot customers using beta version",
+                            "Month-over-month growth at 15% but from small base",
+                            "No clear repeatable acquisition channel yet"
+                        },
+                        RisksAndOpportunities = new()
+                        {
+                            "✗ Traction below funding thresholds for seed stage",
+                            "⚠ Customer acquisition cost not yet measured",
+                            "→ Focus on 1-2 channels to establish repeatable motion",
+                            "→ Set clear monthly growth targets and track weekly"
+                        }
+                    },
                 }
             };
         }
@@ -185,6 +321,63 @@
     private async Task RetryLoad()
     {
         await LoadResults();
+    }
+
+    private void ViewDimensionDetails(DimensionScore dimension)
+    {
+        SelectedDimension = dimension;
+        StateHasChanged();
+    }
+
+    private void BackToOverview()
+    {
+        SelectedDimension = null;
+        StateHasChanged();
+    }
+
+    private string GetInsightType(string insight)
+    {
+        if (insight.StartsWith("✓")) return "positive";
+        if (insight.StartsWith("⚠")) return "warning";
+        if (insight.StartsWith("✗")) return "risk";
+        if (insight.StartsWith("→")) return "action";
+        return "neutral";
+    }
+
+    private string GetInsightIcon(string insight)
+    {
+        if (insight.StartsWith("✓")) return "✓";
+        if (insight.StartsWith("⚠")) return "⚠";
+        if (insight.StartsWith("✗")) return "✗";
+        if (insight.StartsWith("→")) return "→";
+        return "•";
+    }
+
+    private List<string> GetRecommendedSteps(DimensionScore dimension)
+    {
+        // Generate context-specific recommendations based on dimension and score
+        var steps = new List<string>();
+        
+        if (dimension.Status == "Red")
+        {
+            steps.Add($"Review the evidence and risks identified for {dimension.DimensionName}");
+            steps.Add("Prioritize this area in your 90-day roadmap as a critical focus");
+            steps.Add("Consider booking a strategy call to develop an action plan");
+        }
+        else if (dimension.Status == "Yellow")
+        {
+            steps.Add($"Address the opportunities highlighted in {dimension.DimensionName}");
+            steps.Add("Implement tracking and metrics to measure progress");
+            steps.Add("Set quarterly milestones to move from Yellow to Green");
+        }
+        else
+        {
+            steps.Add($"Maintain strong performance in {dimension.DimensionName}");
+            steps.Add("Look for opportunities to level up to best-in-class");
+            steps.Add("Share your approach as a strength in investor conversations");
+        }
+
+        return steps;
     }
 
     private string GetStatusLabel(string status) => status switch
