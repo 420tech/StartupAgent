@@ -31,6 +31,16 @@ public class DeckAnalysis
     public string FileName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Original file name from user's upload
+    /// </summary>
+    public string? OriginalFileName { get; set; }
+
+    /// <summary>
+    /// File size in bytes
+    /// </summary>
+    public long FileSizeBytes { get; set; }
+
+    /// <summary>
     /// JSON serialized AI insights from pitch deck analysis.
     /// Structure: { 
     ///   "tam_clarity": "...", 
@@ -55,6 +65,11 @@ public class DeckAnalysis
     /// Timestamp when analysis was requested.
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Timestamp when record was last updated.
+    /// </summary>
+    public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
     /// Timestamp when analysis completed.

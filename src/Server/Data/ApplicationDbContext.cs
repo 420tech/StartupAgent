@@ -117,9 +117,12 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.AssessmentId).IsRequired();
             entity.Property(e => e.FileUrl).IsRequired();
             entity.Property(e => e.FileName).IsRequired();
+            entity.Property(e => e.OriginalFileName).HasMaxLength(500);
+            entity.Property(e => e.FileSizeBytes).IsRequired();
             entity.Property(e => e.InsightsJson).IsRequired().HasDefaultValue("{}");
             entity.Property(e => e.Status).IsRequired();
             entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt);
 
             // Indexes for fast queries
             entity.HasIndex(e => e.Status);
