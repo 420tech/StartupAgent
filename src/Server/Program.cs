@@ -10,6 +10,7 @@ using StartupAgent.Shared.Services.Narrative;
 using StartupAgent.Shared.Services.Pdf;
 using StartupAgent.Shared.Services.Email;
 using StartupAgent.Shared.Services.Booking;
+using StartupAgent.Server.Services.Bookings;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,6 +82,7 @@ builder.Services.AddScoped<IFounderRepository, FounderRepository>();
 builder.Services.AddScoped<IFounderService, FounderService>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<IAssessmentRepository, AssessmentRepository>();
+builder.Services.AddScoped<IBookingEventRepository, BookingEventRepository>();
 builder.Services.AddScoped<IQuestionBankService, QuestionBankService>();
 builder.Services.AddScoped<IMindsetDetectionService, MindsetDetectionService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
@@ -90,6 +92,7 @@ builder.Services.AddScoped<INarrativeService, NarrativeService>();
 builder.Services.AddScoped<IRoadmapPdfService, RoadmapPdfService>();
 builder.Services.AddScoped<IBookingEmailService, BookingEmailService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IBookingEventTrackingService, BookingEventTrackingService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();

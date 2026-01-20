@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StartupAgent.Shared.Models;
+using StartupAgent.Models.Bookings;
 
 namespace StartupAgent.Data;
 
@@ -33,6 +34,11 @@ public class ApplicationDbContext : DbContext
     /// Deck analyses table (optional pitch deck AI analysis).
     /// </summary>
     public DbSet<DeckAnalysis> DeckAnalyses { get; set; }
+
+    /// <summary>
+    /// Booking events table (funnel tracking and conversion analysis).
+    /// </summary>
+    public DbSet<BookingEvent> BookingEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +124,33 @@ public class ApplicationDbContext : DbContext
             // Indexes for fast queries
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CreatedAt);
+        });
+
+        // Configure BookingEvent entity
+        modelBuilder.Entity<BookingEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FounderId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.EventType).IsRequired();
+            entity.Property(e => e.Source).IsRequired();
+            entity.Property(e => e.CorrelationId).HasMaxLength(36);
+            entity.Property(e => e.BookingId).HasMaxLength(255);
+            entity.Property(e => e.Metadata).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.FounderId);
+            entity.HasIndex(e => e.EventType);
+            entity.HasIndex(e => e.Source);
+            entity.HasIndex(e => e.CorrelationId);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.FounderId, e.CreatedAt }); // For funnel queries
+
+            // Foreign key to Founder (without navigation property on Founder side)
+            entity.HasOne<Founder>()
+                .WithMany()
+                .HasForeignKey(e => e.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

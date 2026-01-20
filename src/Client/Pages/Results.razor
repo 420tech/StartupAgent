@@ -844,23 +844,58 @@
         StateHasChanged();
     }
 
-    private void LogBookingClickEvent()
+    private async void LogBookingClickEvent()
     {
         // Log booking CTA click event with correlation ID
         var correlationId = Guid.NewGuid().ToString();
         Console.WriteLine($"[{correlationId}] Booking CTA clicked - Session: {SessionId}, Timestamp: {DateTime.UtcNow:O}");
         
-        // TODO: Send telemetry event to backend
-        // Track: founder_id, session_id, source (founder_view/investor_view), timestamp, correlation_id
+        try
+        {
+            // Send telemetry event to backend
+            var eventData = new
+            {
+                founderId = "placeholder-founder-id", // TODO: Get from auth context
+                sessionId = SessionId,
+                eventType = "CtaClicked",
+                source = "ResultsPage",
+                correlationId = correlationId,
+                viewMode = ViewMode,
+                timestamp = DateTime.UtcNow
+            };
+
+            await Http.PostAsJsonAsync("/api/v1/events/booking-funnel", eventData);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[{correlationId}] Failed to log booking click: {ex.Message}");
+        }
     }
 
-    private void LogBookingViewEvent()
+    private async void LogBookingViewEvent()
     {
         // Log when Calendly embed is loaded
         var correlationId = Guid.NewGuid().ToString();
         Console.WriteLine($"[{correlationId}] Booking modal opened - Calendly loaded - Session: {SessionId}, Timestamp: {DateTime.UtcNow:O}");
         
-        // TODO: Send telemetry event to backend
-        // Track: founder_id, session_id, source (founder_view/investor_view), timestamp, correlation_id
+        try
+        {
+            // Send telemetry event to backend  
+            var eventData = new
+            {
+                founderId = "placeholder-founder-id", // TODO: Get from auth context
+                sessionId = SessionId,
+                eventType = "BookingModalViewed",
+                source = "ResultsPage",
+                correlationId = correlationId,
+                timestamp = DateTime.UtcNow
+            };
+
+            await Http.PostAsJsonAsync("/api/v1/events/booking-funnel", eventData);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[{correlationId}] Failed to log booking view: {ex.Message}");
+        }
     }
 }
