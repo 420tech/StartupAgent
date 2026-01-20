@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2025.12.3" />
     <ProjectReference Include="..\Shared\StartupAgent.Shared.csproj" />
     <ProjectReference Include="..\Client\StartupAgent.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.2" />
