@@ -1,0 +1,226 @@
+@page "/results/{SessionId}"
+@using StartupAgent.Client.Services
+@using StartupAgent.Shared.Models.Scoring
+@inject SessionApiClient ApiClient
+@inject NavigationManager Nav
+
+<div class="results-container">
+    @if (Loading)
+    {
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading your results...</p>
+        </div>
+    }
+    else if (Error)
+    {
+        <div class="error-state">
+            <h2>Unable to Load Results</h2>
+            <p>@ErrorMessage</p>
+            <button class="btn-primary" @onclick="RetryLoad">Try Again</button>
+        </div>
+    }
+    else if (DiagnosticResults != null)
+    {
+        <div class="results-header">
+            <h1>Your Diagnostic Results</h1>
+            <p class="timestamp">Completed on @DiagnosticResults.GeneratedAt.ToString("MMMM d, yyyy")</p>
+        </div>
+
+        <!-- Overall Score Section -->
+        <div class="overall-score-card">
+            <div class="score-display">
+                <div class="score-number">@DiagnosticResults.OverallScore</div>
+                <div class="score-label">Overall Readiness</div>
+            </div>
+            <div class="score-status">
+                <span class="status-badge @DiagnosticResults.OverallStatus.ToLower()">
+                    @GetStatusLabel(DiagnosticResults.OverallStatus)
+                </span>
+                <p class="status-text">@GetStatusExplanation(DiagnosticResults.OverallStatus)</p>
+            </div>
+        </div>
+
+        <!-- Dimension Scores Grid -->
+        <div class="dimensions-section">
+            <h2>Assessment Breakdown</h2>
+            <div class="dimensions-grid">
+                @foreach (var dimension in DiagnosticResults.DimensionScores)
+                {
+                    <div class="dimension-card">
+                        <div class="dimension-header">
+                            <h3>@dimension.DimensionName</h3>
+                            <span class="status-badge @dimension.Status.ToLower()">
+                                @GetStatusLabel(dimension.Status)
+                            </span>
+                        </div>
+                        
+                        <div class="dimension-score">
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: @dimension.Score%"></div>
+                            </div>
+                            <div class="score-number">@dimension.Score</div>
+                        </div>
+
+                        <div class="confidence-note">
+                            <strong>Assessment:</strong> @dimension.ConfidenceNote
+                        </div>
+
+                        @if (dimension.RisksAndOpportunities.Any())
+                        {
+                            <details class="dimension-details">
+                                <summary>Details & Evidence</summary>
+                                @if (dimension.RisksAndOpportunities.Any())
+                                {
+                                    <ul>
+                                        @foreach (var item in dimension.RisksAndOpportunities)
+                                        {
+                                            <li>@item</li>
+                                        }
+                                    </ul>
+                                }
+                            </details>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Top Priorities Section -->
+        @if (DiagnosticResults.TopPriorities.Any())
+        {
+            <div class="priorities-section">
+                <h2>Your Top Priorities</h2>
+                <ol class="priorities-list">
+                    @foreach (var priority in DiagnosticResults.TopPriorities)
+                    {
+                        <li>
+                            <strong>@priority</strong>
+                            <p>Focus on improving this area first for maximum impact.</p>
+                        </li>
+                    }
+                </ol>
+            </div>
+        }
+
+        <!-- Actions -->
+        <div class="results-actions">
+            <button class="btn-primary" @onclick="DownloadRoadmap">Download 90-Day Roadmap</button>
+            <button class="btn-secondary" @onclick="ViewInvestorBrief">View Investor Brief</button>
+            <button class="btn-secondary" @onclick="BookCall">Book Strategy Call</button>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <p>No results available yet. Complete your diagnostic to see results.</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? SessionId { get; set; }
+
+    private DiagnosticResults? DiagnosticResults;
+    private bool Loading = true;
+    private bool Error = false;
+    private string ErrorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(SessionId))
+        {
+            Error = true;
+            ErrorMessage = "Invalid session ID";
+            Loading = false;
+            return;
+        }
+
+        await LoadResults();
+    }
+
+    private async Task LoadResults()
+    {
+        Loading = true;
+        Error = false;
+        ErrorMessage = "";
+
+        try
+        {
+            // TODO: Call API endpoint
+            // DiagnosticResults = await ApiClient.GetResultsAsync(SessionId);
+            
+            // Placeholder loading
+            await Task.Delay(500);
+            DiagnosticResults = new DiagnosticResults
+            {
+                SessionId = SessionId ?? "",
+                OverallScore = 68,
+                OverallStatus = "Yellow",
+                MindsetBucket = "confident-but-unsure",
+                GeneratedAt = DateTime.Now,
+                OverallConfidence = 85,
+                QuestionsAnswered = 23,
+                TopPriorities = new() { "Go-to-Market", "Traction" },
+                DimensionScores = new()
+                {
+                    new() { DimensionName = "Problem Validation", Score = 82, Status = "Green", ConfidenceLevel = 90, ConfidenceNote = "Strong problem understanding evident." },
+                    new() { DimensionName = "User Research", Score = 75, Status = "Green", ConfidenceLevel = 85, ConfidenceNote = "Adequate user validation." },
+                    new() { DimensionName = "Traction", Score = 45, Status = "Red", ConfidenceLevel = 88, ConfidenceNote = "Early stage - traction needs development." },
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            Error = true;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task RetryLoad()
+    {
+        await LoadResults();
+    }
+
+    private string GetStatusLabel(string status) => status switch
+    {
+        "Green" => "✓ Strong",
+        "Yellow" => "△ Needs Work",
+        "Red" => "✗ Critical",
+        _ => status
+    };
+
+    private string GetStatusExplanation(string status) => status switch
+    {
+        "Green" => "You're well-positioned in most areas. Focus on your priorities to level up.",
+        "Yellow" => "Some solid fundamentals, but clear areas to improve. Let's prioritize.",
+        "Red" => "Significant gaps identified. Let's build a focused 90-day plan to close them.",
+        _ => "Assessment complete."
+    };
+
+    private void DownloadRoadmap()
+    {
+        // TODO: Trigger roadmap PDF download
+        if (!string.IsNullOrEmpty(SessionId))
+            Nav.NavigateTo($"/roadmap/{SessionId}/download");
+    }
+
+    private void ViewInvestorBrief()
+    {
+        // TODO: Navigate to investor brief view
+        if (!string.IsNullOrEmpty(SessionId))
+            Nav.NavigateTo($"/brief/{SessionId}");
+    }
+
+    private void BookCall()
+    {
+        // TODO: Open booking modal or navigate to booking
+        if (!string.IsNullOrEmpty(SessionId))
+            Nav.NavigateTo($"/book-call?session={SessionId}");
+    }
+}
