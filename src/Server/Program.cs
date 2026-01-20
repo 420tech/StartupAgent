@@ -11,6 +11,7 @@ using StartupAgent.Shared.Services.Pdf;
 using StartupAgent.Shared.Services.Email;
 using StartupAgent.Shared.Services.Booking;
 using StartupAgent.Server.Services.Bookings;
+using StartupAgent.Server.Services.Storage;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -93,6 +94,7 @@ builder.Services.AddScoped<IRoadmapPdfService, RoadmapPdfService>();
 builder.Services.AddScoped<IBookingEmailService, BookingEmailService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingEventTrackingService, BookingEventTrackingService>();
+builder.Services.AddScoped<IDeckUploadService, DeckUploadService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();

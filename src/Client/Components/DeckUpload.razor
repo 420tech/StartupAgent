@@ -1,0 +1,434 @@
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="deck-upload-container">
+    @if (Uploading)
+    {
+        <div class="upload-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: @UploadProgress%"></div>
+            </div>
+            <p class="progress-text">Uploading... @UploadProgress%</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(UploadedFileName))
+    {
+        <div class="upload-success">
+            <span class="success-icon">✓</span>
+            <div class="upload-details">
+                <p class="uploaded-file">@UploadedFileName</p>
+                <p class="file-size">@FormatFileSize(FileSizeBytes)</p>
+                <p class="uploaded-at">Uploaded @UploadedAt?.ToString("MMM d, yyyy")</p>
+            </div>
+            <button class="btn-replace" @onclick="ClearUpload">Replace Deck</button>
+        </div>
+    }
+    else
+    {
+        <div class="upload-zone @(Dragging ? "dragging" : "")" 
+             @ondrop="HandleDrop" 
+             @ondragenter="HandleDragEnter" 
+             @ondragleave="HandleDragLeave" 
+             @ondragover:preventDefault="true">
+            
+            <input type="file" 
+                   id="deckFileInput" 
+                   accept=".pdf,.pptx,.ppt" 
+                   @ref="fileInputElement"
+                   @onchange="HandleFileSelected" 
+                   style="display: none;" />
+            
+            <div class="upload-prompt" @onclick="TriggerFileSelect">
+                <div class="upload-icon">📄</div>
+                <h3>Upload Your Pitch Deck</h3>
+                <p class="instructions">Drag and drop your deck here, or click to browse</p>
+                <p class="file-types">Accepted formats: PDF, PowerPoint (.pptx, .ppt)</p>
+                <p class="size-limit">Maximum size: 50 MB</p>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="upload-error">
+            <span class="error-icon">✗</span>
+            <p>@ErrorMessage</p>
+            <button class="btn-retry" @onclick="ClearError">Try Again</button>
+        </div>
+    }
+</div>
+
+<style>
+.deck-upload-container {
+    margin: 2rem 0;
+}
+
+.upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.upload-zone.dragging {
+    border-color: #3b82f6;
+    background: #dbeafe;
+    transform: scale(1.02);
+}
+
+.upload-prompt {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+}
+
+.upload-prompt h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.instructions {
+    color: #64748b;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+.file-types, .size-limit {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    margin: 0.25rem 0;
+}
+
+.upload-progress {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.upload-success {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.success-icon {
+    font-size: 2rem;
+    color: #22c55e;
+}
+
+.upload-details {
+    flex: 1;
+}
+
+.uploaded-file {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.file-size, .uploaded-at {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0.25rem 0;
+}
+
+.btn-replace {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-replace:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.upload-error {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.error-icon {
+    font-size: 1.5rem;
+    color: #ef4444;
+}
+
+.upload-error p {
+    flex: 1;
+    color: #991b1b;
+    margin: 0;
+}
+
+.btn-retry {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #f87171;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #dc2626;
+    transition: all 0.2s;
+}
+
+.btn-retry:hover {
+    background: #fee2e2;
+}
+</style>
+
+@code {
+    [Parameter]
+    public string? AssessmentId { get; set; }
+
+    [Parameter]
+    public EventCallback OnUploadComplete { get; set; }
+
+    private ElementReference fileInputElement;
+    private bool Uploading = false;
+    private int UploadProgress = 0;
+    private bool Dragging = false;
+    private string? ErrorMessage;
+    private string? UploadedFileName;
+    private long FileSizeBytes;
+    private DateTime? UploadedAt;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if there's already an uploaded deck
+        await CheckExistingUpload();
+    }
+
+    private async Task CheckExistingUpload()
+    {
+        if (string.IsNullOrEmpty(AssessmentId)) return;
+
+        try
+        {
+            var response = await Http.GetAsync($"/api/v1/decks/status/{AssessmentId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var status = await response.Content.ReadFromJsonAsync<DeckUploadStatus>();
+                if (status?.HasUpload == true)
+                {
+                    UploadedFileName = status.OriginalFileName ?? status.FileName;
+                    FileSizeBytes = status.FileSizeBytes;
+                    UploadedAt = status.UploadedAt;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error checking upload status: {ex.Message}");
+        }
+    }
+
+    private void TriggerFileSelect()
+    {
+        // Use JS interop to trigger file input click
+        JS.InvokeVoidAsync("eval", $"document.getElementById('deckFileInput').click()");
+    }
+
+    private async Task HandleFileSelected(ChangeEventArgs e)
+    {
+        var files = await JS.InvokeAsync<string[]>("eval", "Array.from(document.getElementById('deckFileInput').files).map(f => f.name)");
+        if (files.Length > 0)
+        {
+            await UploadFile();
+        }
+    }
+
+    private void HandleDragEnter()
+    {
+        Dragging = true;
+    }
+
+    private void HandleDragLeave()
+    {
+        Dragging = false;
+    }
+
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        Dragging = false;
+        await UploadFile();
+    }
+
+    private async Task UploadFile()
+    {
+        if (string.IsNullOrEmpty(AssessmentId))
+        {
+            ErrorMessage = "Assessment ID is required";
+            return;
+        }
+
+        Uploading = true;
+        UploadProgress = 0;
+        ErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            // Simulate progress (actual upload doesn't report progress in this simple implementation)
+            _ = SimulateProgress();
+
+            var content = new MultipartFormDataContent();
+            
+            // Get file from input element using JS
+            var fileData = await JS.InvokeAsync<string>("getFileAsBase64", "deckFileInput");
+            if (string.IsNullOrEmpty(fileData))
+            {
+                throw new Exception("No file selected");
+            }
+
+            // Parse base64 data
+            var parts = fileData.Split(',');
+            if (parts.Length < 2)
+            {
+                throw new Exception("Invalid file data");
+            }
+
+            var base64 = parts[1];
+            var bytes = Convert.FromBase64String(base64);
+            var fileName = await JS.InvokeAsync<string>("getFileName", "deckFileInput");
+            
+            content.Add(new ByteArrayContent(bytes), "file", fileName);
+            content.Add(new StringContent(AssessmentId), "assessmentId");
+
+            var response = await Http.PostAsync("/api/v1/decks/upload", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                UploadProgress = 100;
+                var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
+                
+                UploadedFileName = result?.OriginalFileName ?? result?.FileName;
+                FileSizeBytes = result?.FileSizeBytes ?? 0;
+                UploadedAt = result?.UploadedAt ?? DateTime.UtcNow;
+                
+                await Task.Delay(500); // Brief delay to show 100%
+                
+                // Notify parent component
+                await OnUploadComplete.InvokeAsync();
+            }
+            else
+            {
+                var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                ErrorMessage = error?.Error ?? "Upload failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Upload error: {ex.Message}";
+            Console.Error.WriteLine($"Deck upload error: {ex.Message}");
+        }
+        finally
+        {
+            Uploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SimulateProgress()
+    {
+        // Simulate upload progress for better UX
+        while (Uploading && UploadProgress < 90)
+        {
+            await Task.Delay(200);
+            UploadProgress += 10;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearUpload()
+    {
+        UploadedFileName = null;
+        FileSizeBytes = 0;
+        UploadedAt = null;
+        StateHasChanged();
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+        StateHasChanged();
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024):F1} MB";
+    }
+
+    private class DeckUploadStatus
+    {
+        public bool HasUpload { get; set; }
+        public string? FileName { get; set; }
+        public string? OriginalFileName { get; set; }
+        public long FileSizeBytes { get; set; }
+        public DateTime? UploadedAt { get; set; }
+    }
+
+    private class UploadResponse
+    {
+        public string? Message { get; set; }
+        public string? FileName { get; set; }
+        public string? OriginalFileName { get; set; }
+        public long FileSizeBytes { get; set; }
+        public DateTime? UploadedAt { get; set; }
+    }
+
+    private class ErrorResponse
+    {
+        public string? Error { get; set; }
+    }
+}
