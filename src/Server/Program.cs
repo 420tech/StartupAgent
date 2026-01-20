@@ -6,6 +6,7 @@ using StartupAgent.Data.Repositories;
 using StartupAgent.Modules.Shared.Middleware;
 using StartupAgent.Modules.Shared.Services;
 using StartupAgent.Shared.Services.Scoring;
+using StartupAgent.Shared.Services.Narrative;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -82,6 +83,7 @@ builder.Services.AddScoped<IMindsetDetectionService, MindsetDetectionService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IScoringService, ScoringService>();
+builder.Services.AddScoped<INarrativeService, NarrativeService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();

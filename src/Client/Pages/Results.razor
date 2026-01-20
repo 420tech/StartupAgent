@@ -41,6 +41,23 @@
             </div>
         </div>
 
+        <!-- Personal Narrative from Tim -->
+        @if (!string.IsNullOrEmpty(DiagnosticResults.Narrative))
+        {
+            <div class="narrative-section">
+                <div class="narrative-header">
+                    <h2>📬 A Note from Tim</h2>
+                    <span class="mindset-tag">@GetMindsetLabel(DiagnosticResults.MindsetBucket)</span>
+                </div>
+                <div class="narrative-content">
+                    @foreach (var paragraph in DiagnosticResults.Narrative.Split("\n\n"))
+                    {
+                        <p>@paragraph</p>
+                    }
+                </div>
+            </div>
+        }
+
         <!-- Dimension Scores Grid or Drill-Down View -->
         @if (SelectedDimension == null)
         {
@@ -241,6 +258,7 @@
                 OverallConfidence = 85,
                 QuestionsAnswered = 23,
                 TopPriorities = new() { "Go-to-Market", "Traction" },
+                Narrative = "Your instincts are solid—68/100 confirms you're on the right track. But I'm seeing a few places where you could tighten up before they become blockers down the road.\n\nThe gap I'd address first: **Go-to-Market**. You're confident in your vision, and that's good—but this area needs attention before it undermines everything else you've built.\n\nYour confidence isn't misplaced—you've got real strengths. Now let's make sure nothing trips you up when it matters most.",
                 DimensionScores = new()
                 {
                     new() 
@@ -386,6 +404,15 @@
         "Yellow" => "△ Needs Work",
         "Red" => "✗ Critical",
         _ => status
+    };
+
+    private string GetMindsetLabel(string mindset) => mindset.ToLower() switch
+    {
+        "overwhelmed" => "For founders feeling overwhelmed",
+        "confident-but-unsure" => "For confident founders seeking validation",
+        "stuck" => "For founders looking for a breakthrough",
+        "pre-fundraise" => "For fundraising preparation",
+        _ => "Personalized guidance"
     };
 
     private string GetStatusExplanation(string status) => status switch
