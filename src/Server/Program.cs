@@ -5,6 +5,7 @@ using StartupAgent.Data;
 using StartupAgent.Data.Repositories;
 using StartupAgent.Modules.Shared.Middleware;
 using StartupAgent.Modules.Shared.Services;
+using StartupAgent.Shared.Services.Scoring;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -80,6 +81,7 @@ builder.Services.AddScoped<IQuestionBankService, QuestionBankService>();
 builder.Services.AddScoped<IMindsetDetectionService, MindsetDetectionService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
+builder.Services.AddScoped<IScoringService, ScoringService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
