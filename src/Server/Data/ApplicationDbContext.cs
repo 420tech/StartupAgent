@@ -40,6 +40,16 @@ public class ApplicationDbContext : DbContext
     /// </summary>
     public DbSet<BookingEvent> BookingEvents { get; set; }
 
+    /// <summary>
+    /// Session drop-off events table (recovery email triggering).
+    /// </summary>
+    public DbSet<SessionDropOff> SessionDropOffs { get; set; }
+
+    /// <summary>
+    /// Recovery emails table (tracking sent recovery emails).
+    /// </summary>
+    public DbSet<RecoveryEmail> RecoveryEmails { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -150,6 +160,59 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => new { e.FounderId, e.CreatedAt }); // For funnel queries
 
             // Foreign key to Founder (without navigation property on Founder side)
+            entity.HasOne<Founder>()
+                .WithMany()
+                .HasForeignKey(e => e.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure SessionDropOff entity
+        modelBuilder.Entity<SessionDropOff>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FounderId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.AssessmentId);
+            entity.Property(e => e.LastActivityAt).IsRequired();
+            entity.Property(e => e.Reason).IsRequired();
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt);
+            entity.Property(e => e.RetryCount).HasDefaultValue(0);
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.FounderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.FounderId, e.Status }); // For recovery job queries
+
+            // Foreign key to Founder
+            entity.HasOne<Founder>()
+                .WithMany()
+                .HasForeignKey(e => e.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure RecoveryEmail entity
+        modelBuilder.Entity<RecoveryEmail>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionDropOffId).IsRequired().HasMaxLength(36);
+            entity.Property(e => e.FounderId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ResumeLink).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.AttemptCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt);
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.Status, e.CreatedAt }); // For job processor queries
+            entity.HasIndex(e => e.FounderId);
+
+            // Foreign key to Founder
             entity.HasOne<Founder>()
                 .WithMany()
                 .HasForeignKey(e => e.FounderId)
