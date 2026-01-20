@@ -1,0 +1,104 @@
+@page "/verify"
+@inject HttpClient HttpClient
+@inject TokenStore TokenStore
+@inject NavigationManager Navigation
+
+<section class="hero">
+    <div class="hero__content">
+        <p class="eyebrow">Verification</p>
+        <h1>Verify your magic link</h1>
+        <p class="lede">Paste the magic link token from your email (or server logs during development).</p>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="alert error">@_errorMessage</div>
+        }
+
+        <div class="card" style="max-width: 560px; margin-top: 24px;">
+            <div class="card-body">
+                <label class="field-label" for="token">Magic link token</label>
+                <textarea id="token" class="text-area" rows="3" placeholder="Paste token here" @bind="_token"></textarea>
+                <div class="actions">
+                    <button class="btn primary" @onclick="VerifyToken" disabled="@(_loading || string.IsNullOrWhiteSpace(_token))">
+                        @(_loading ? "Verifying..." : "Verify & sign in")
+                    </button>
+                    <a class="btn" href="/login">Back to login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string _token = string.Empty;
+    private bool _loading;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TokenStore.InitializeAsync();
+
+        // Check if token provided in query string
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var tokenParam = queryParams["token"];
+
+        if (!string.IsNullOrWhiteSpace(tokenParam))
+        {
+            _token = tokenParam;
+            await VerifyToken();
+        }
+    }
+
+    private async Task VerifyToken()
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            _errorMessage = "Token is required";
+            return;
+        }
+
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await HttpClient.PostAsJsonAsync("/api/v1/auth/verify", new { token = _token.Trim() });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TokenResponseDto>();
+                if (result?.AccessToken != null)
+                {
+                    await TokenStore.SetTokenAsync(result.AccessToken);
+                    Navigation.NavigateTo("/diagnostic");
+                }
+                else
+                {
+                    _errorMessage = "Verification succeeded but no token returned";
+                }
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"Verification failed: {response.StatusCode}. {errorText}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private class TokenResponseDto
+    {
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
+    }
+}

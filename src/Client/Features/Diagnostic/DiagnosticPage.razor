@@ -1,0 +1,397 @@
+@page "/diagnostic"
+
+@inject SessionApiClient SessionApiClient
+@inject TokenStore TokenStore
+
+<h1 class="page-title">Diagnostic Session</h1>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert error">@_errorMessage</div>
+}
+
+<div class="card token-card">
+    <div class="card-header">
+        <div>
+            <p class="eyebrow">Access token</p>
+            <h3>Paste a JWT access token</h3>
+            <p class="muted">Use the auth endpoints to obtain a token, then paste it here. It is stored in localStorage for convenience.</p>
+        </div>
+        <div class="pill @(TokenStore.HasToken ? "success" : "warning")">@(TokenStore.HasToken ? "Token saved" : "Token required")</div>
+    </div>
+    <div class="card-body token-input">
+        <input class="text-input" placeholder="Bearer access token" @bind="_tokenInput" />
+        <button class="btn primary" @onclick="SaveToken" disabled="@_savingToken">Save token</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="loading">Loading...</div>
+}
+
+@if (_results is not null)
+{
+    <section class="card results-card">
+        <div class="card-header">
+            <p class="eyebrow">Results</p>
+            <h3>Overall score: @_results.OverallScore</h3>
+            <div class="pill @(GetStatusClass(_results.ReadinessStatus))">@_results.ReadinessStatus</div>
+        </div>
+        <div class="card-body">
+            <p class="muted">Detected mindset: @_results.DetectedMindset</p>
+            <div class="grid">
+                <div>
+                    <h4>Dimension scores</h4>
+                    <ul class="score-list">
+                        @foreach (var kvp in _results.DimensionScores.OrderByDescending(x => x.Value))
+                        {
+                            <li>
+                                <span class="label">@FormatDimension(kvp.Key)</span>
+                                <span class="value">@kvp.Value</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+                <div>
+                    <h4>Roadmap</h4>
+                    <div class="copy-block" @onclick:stopPropagation="true">@((MarkupString)FormatMultiline(_results.RoadmapText))</div>
+                </div>
+                <div>
+                    <h4>Risk brief</h4>
+                    <div class="copy-block" @onclick:stopPropagation="true">@((MarkupString)FormatMultiline(_results.RiskBriefText))</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button class="btn" @onclick="ResetSession">Start another session</button>
+        </div>
+    </section>
+}
+else if (_session is null)
+{
+    <section class="card start-card">
+        <div class="card-header">
+            <p class="eyebrow">Start</p>
+            <h3>Begin a new diagnostic</h3>
+        </div>
+        <div class="card-body">
+            <label class="field-label" for="mindset">How are you feeling about your startup?</label>
+            <textarea id="mindset" class="text-area" rows="3" placeholder="Overwhelmed / Stuck / Confident but want validation / Pre-fundraise" @bind="_mindsetInput"></textarea>
+            <button class="btn primary" @onclick="StartSession" disabled="_loading || !TokenStore.HasToken">Start session</button>
+        </div>
+    </section>
+}
+else
+{
+    <section class="card session-card">
+        <div class="card-header">
+            <div>
+                <p class="eyebrow">Question @(_currentQuestion?.QuestionNumber ?? 0) of @(_currentQuestion?.TotalQuestions ?? 15)</p>
+                <h3>@(_currentQuestion?.Text ?? "Fetching next question...")</h3>
+                <p class="muted">Dimension: @(_currentQuestion?.Dimension ?? _session.ProgressState)</p>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" style="width:@_session.ProgressPercentage%"></div>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (_currentQuestion is not null)
+            {
+                if (HasOptions(_currentQuestion))
+                {
+                    <div class="options">
+                        @foreach (var option in GetOptions(_currentQuestion))
+                        {
+                            <button class="btn option" @onclick="() => SubmitOption(option)" disabled="_loading">@option</button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <textarea class="text-area" rows="5" placeholder="Type your answer" @bind="_answer"></textarea>
+                    <div class="actions">
+                        <button class="btn primary" @onclick="SubmitAnswer" disabled="_loading || string.IsNullOrWhiteSpace(_answer)">Submit answer</button>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="muted">No question available. If you just answered, the session might be complete.</p>
+            }
+        </div>
+        <div class="card-footer">
+            <small class="muted">Session ID: @_session.Id</small>
+        </div>
+    </section>
+}
+
+@code {
+    private string _tokenInput = string.Empty;
+    private string _mindsetInput = string.Empty;
+    private string _answer = string.Empty;
+    private bool _loading;
+    private bool _savingToken;
+    private string? _errorMessage;
+    private SessionDto? _session;
+    private QuestionDto? _currentQuestion;
+    private SessionResultsDto? _results;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TokenStore.InitializeAsync();
+        _tokenInput = TokenStore.AccessToken ?? string.Empty;
+
+        if (TokenStore.HasToken)
+        {
+            await LoadCurrentSession();
+        }
+    }
+
+    private async Task SaveToken()
+    {
+        _savingToken = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TokenStore.SetTokenAsync(_tokenInput);
+            if (TokenStore.HasToken)
+            {
+                await LoadCurrentSession();
+            }
+            else
+            {
+                _session = null;
+                _results = null;
+                _currentQuestion = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _savingToken = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCurrentSession()
+    {
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _session = await SessionApiClient.GetCurrentSessionAsync();
+
+            if (_session is null)
+            {
+                _results = null;
+                _currentQuestion = null;
+                return;
+            }
+
+            if (string.Equals(_session.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadResults();
+                return;
+            }
+
+            await LoadNextQuestion();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartSession()
+    {
+        if (!TokenStore.HasToken)
+        {
+            _errorMessage = "Please paste an access token first.";
+            return;
+        }
+
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var dto = new StartSessionDto
+            {
+                MindsetAnswer = string.IsNullOrWhiteSpace(_mindsetInput) ? null : _mindsetInput.Trim()
+            };
+
+            _session = await SessionApiClient.StartSessionAsync(dto);
+            _results = null;
+            _currentQuestion = null;
+            await LoadNextQuestion();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadNextQuestion()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _currentQuestion = await SessionApiClient.GetNextQuestionAsync(_session.Id);
+        _answer = string.Empty;
+
+        if (_currentQuestion is null)
+        {
+            await CheckCompletion();
+        }
+    }
+
+    private async Task SubmitAnswer()
+    {
+        if (_session is null)
+        {
+            _errorMessage = "No active session.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_answer))
+        {
+            _errorMessage = "Answer cannot be empty.";
+            return;
+        }
+
+        await SubmitAnswerInternal(_answer);
+    }
+
+    private async Task SubmitOption(string option)
+    {
+        if (_session is null)
+        {
+            _errorMessage = "No active session.";
+            return;
+        }
+
+        await SubmitAnswerInternal(option);
+    }
+
+    private async Task SubmitAnswerInternal(string answer)
+    {
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            await SessionApiClient.SubmitAnswerAsync(_session!.Id, new SubmitAnswerDto { Answer = answer });
+            _session = await SessionApiClient.GetSessionAsync(_session.Id);
+
+            if (_session is not null && string.Equals(_session.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadResults();
+                return;
+            }
+
+            await LoadNextQuestion();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CheckCompletion()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _session = await SessionApiClient.GetSessionAsync(_session.Id);
+        if (_session is not null && string.Equals(_session.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            await LoadResults();
+        }
+    }
+
+    private async Task LoadResults()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _results = await SessionApiClient.GetResultsAsync(_session.Id);
+    }
+
+    private async Task ResetSession()
+    {
+        _session = null;
+        _results = null;
+        _currentQuestion = null;
+        _mindsetInput = string.Empty;
+        _answer = string.Empty;
+        await LoadCurrentSession();
+    }
+
+    private static bool HasOptions(QuestionDto question)
+    {
+        return question.Options is { Count: > 0 } || string.Equals(question.QuestionType, "yes-no", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IEnumerable<string> GetOptions(QuestionDto question)
+    {
+        if (question.Options is { Count: > 0 })
+        {
+            return question.Options;
+        }
+
+        return new[] { "Yes", "No" };
+    }
+
+    private static string GetStatusClass(string status)
+    {
+        return status?.ToLowerInvariant() switch
+        {
+            "green" => "success",
+            "yellow" => "warning",
+            "red" => "danger",
+            _ => "warning"
+        };
+    }
+
+    private static string FormatDimension(string dimension)
+    {
+        return dimension.Replace("_", " ");
+    }
+
+    private static string FormatMultiline(string text)
+    {
+        return string.IsNullOrWhiteSpace(text)
+            ? string.Empty
+            : text.Replace("\n", "<br />");
+    }
+}

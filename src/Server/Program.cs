@@ -84,6 +84,9 @@ builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 // Add controllers and validation
 builder.Services.AddControllers();
 
+// Add antiforgery (required for Blazor)
+builder.Services.AddAntiforgery();
+
 // Add logging
 builder.Services.AddLogging();
 
@@ -103,7 +106,15 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+
+// Configure static files with additional MIME types for Blazor WASM
+var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+provider.Mappings[".dat"] = "application/octet-stream";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
+
 app.UseAntiforgery();
 
 app.UseAuthentication();

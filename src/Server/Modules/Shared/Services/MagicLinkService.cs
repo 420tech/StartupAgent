@@ -43,7 +43,12 @@ public class MagicLinkService : IMagicLinkService
         var message = $"{email}:{timestamp}";
         var hmac = ComputeHmac(message, hmacSecret);
 
-        return $"{message}:{hmac}";
+        var token = $"{message}:{hmac}";
+        
+        // Log token for development/testing (remove in production)
+        _logger.LogWarning("🔑 MAGIC LINK TOKEN for {Email}: {Token}", email, token);
+        
+        return token;
     }
 
     public string? ValidateToken(string token)
