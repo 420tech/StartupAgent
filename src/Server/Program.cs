@@ -98,10 +98,15 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingEventTrackingService, BookingEventTrackingService>();
 builder.Services.AddScoped<IDeckUploadService, DeckUploadService>();
 builder.Services.AddScoped<IDeckAnalysisService, DeckAnalysisService>();
+builder.Services.AddScoped<IRecoveryEmailService, RecoveryEmailService>();
 
 // Deck analysis background job processing
 builder.Services.AddSingleton<IDeckAnalysisJobQueue, DeckAnalysisJobQueue>();
 builder.Services.AddHostedService<DeckAnalysisJobProcessor>();
+
+// Recovery email background job processing
+builder.Services.AddSingleton<IRecoveryEmailJobQueue, RecoveryEmailJobQueue>();
+builder.Services.AddHostedService<RecoveryEmailJobProcessor>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
