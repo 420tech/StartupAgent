@@ -25,8 +25,20 @@
     }
     else if (DiagnosticResults != null)
     {
+        <!-- View Toggle: Founder vs Investor -->
+        <div class="view-toggle">
+            <button class="toggle-btn @(ViewMode == "founder" ? "active" : "")" 
+                    @onclick="@(() => SwitchView("founder"))">
+                📊 Founder View
+            </button>
+            <button class="toggle-btn @(ViewMode == "investor" ? "active" : "")" 
+                    @onclick="@(() => SwitchView("investor"))">
+                💼 Investor Risk Brief
+            </button>
+        </div>
+
         <div class="results-header">
-            <h1>Your Diagnostic Results</h1>
+            <h1>@(ViewMode == "investor" ? "Investor Risk Brief" : "Your Diagnostic Results")</h1>
             <p class="timestamp">Completed on @DiagnosticResults.GeneratedAt.ToString("MMMM d, yyyy")</p>
             
             <!-- Download Roadmap Button -->
@@ -49,10 +61,18 @@
                         <button class="btn-retry" @onclick="DownloadRoadmapPdf">Try Again</button>
                     </div>
                 }
+                @if (ViewMode == "investor")
+                {
+                    <button class="btn-print" @onclick="PrintInvestorBrief">
+                        🖨️ Print Risk Brief
+                    </button>
+                }
             </div>
         </div>
 
-        <!-- Overall Score Section -->
+        @if (ViewMode == "founder")
+        {
+            <!-- FOUNDER VIEW -->
         <div class="overall-score-card">
             <div class="score-display">
                 <div class="score-number">@DiagnosticResults.OverallScore</div>
@@ -221,8 +241,185 @@
                 </ol>
             </div>
         }
+        }
+        else
+        {
+            <!-- INVESTOR RISK BRIEF VIEW -->
+            <div class="investor-brief-container">
+                
+                <!-- Executive Summary -->
+                <div class="investor-section">
+                    <h2>Executive Summary</h2>
+                    <div class="risk-summary">
+                        <div class="risk-score-display">
+                            <div class="risk-number @GetRiskClass(DiagnosticResults.OverallScore)">
+                                @DiagnosticResults.OverallScore
+                            </div>
+                            <div class="risk-label">Readiness Score</div>
+                            <div class="risk-status @DiagnosticResults.OverallStatus.ToLower()">
+                                @GetInvestorStatusLabel(DiagnosticResults.OverallStatus)
+                            </div>
+                        </div>
+                        <div class="risk-context">
+                            <p class="summary-text">@GetInvestorSummary(DiagnosticResults.OverallStatus, DiagnosticResults.OverallScore)</p>
+                            <div class="confidence-indicator">
+                                <strong>Assessment Confidence:</strong> @DiagnosticResults.OverallConfidence%
+                                <span class="confidence-note">Based on @DiagnosticResults.QuestionsAnswered comprehensive questions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Actions -->
+                <!-- Critical Risk Areas -->
+                <div class="investor-section">
+                    <h2>Critical Risk Areas</h2>
+                    @{
+                        var criticalAreas = DiagnosticResults.DimensionScores.Where(d => d.Status == "Red").ToList();
+                        var warningAreas = DiagnosticResults.DimensionScores.Where(d => d.Status == "Yellow").ToList();
+                    }
+                    
+                    @if (criticalAreas.Any())
+                    {
+                        <div class="risk-category critical">
+                            <h3>🔴 Critical Gaps (Immediate Attention Required)</h3>
+                            @foreach (var dimension in criticalAreas)
+                            {
+                                <div class="risk-item">
+                                    <div class="risk-header">
+                                        <strong>@dimension.DimensionName</strong>
+                                        <span class="score-badge red">@dimension.Score/100</span>
+                                    </div>
+                                    <div class="risk-details">
+                                        <p class="assessment">@dimension.ConfidenceNote</p>
+                                        @if (dimension.RisksAndOpportunities.Any())
+                                        {
+                                            <ul class="risk-list">
+                                                @foreach (var risk in dimension.RisksAndOpportunities.Where(r => r.Contains("✗") || r.Contains("⚠")))
+                                                {
+                                                    <li>@risk.Replace("✗", "").Replace("⚠", "").Trim()</li>
+                                                }
+                                            </ul>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    
+                    @if (warningAreas.Any())
+                    {
+                        <div class="risk-category warning">
+                            <h3>⚠️ Areas of Concern (Monitor Closely)</h3>
+                            @foreach (var dimension in warningAreas)
+                            {
+                                <div class="risk-item">
+                                    <div class="risk-header">
+                                        <strong>@dimension.DimensionName</strong>
+                                        <span class="score-badge yellow">@dimension.Score/100</span>
+                                    </div>
+                                    <div class="risk-details">
+                                        <p class="assessment">@dimension.ConfidenceNote</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    
+                    @if (!criticalAreas.Any() && !warningAreas.Any())
+                    {
+                        <div class="no-critical-risks">
+                            <p>✓ No critical risk areas identified. All dimensions score Green.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Strengths & Differentiators -->
+                <div class="investor-section">
+                    <h2>Strengths & Differentiators</h2>
+                    @{
+                        var strengths = DiagnosticResults.DimensionScores.Where(d => d.Status == "Green").ToList();
+                    }
+                    
+                    @if (strengths.Any())
+                    {
+                        <div class="strengths-grid">
+                            @foreach (var dimension in strengths)
+                            {
+                                <div class="strength-card">
+                                    <div class="strength-header">
+                                        <span class="check-icon">✓</span>
+                                        <strong>@dimension.DimensionName</strong>
+                                    </div>
+                                    <div class="strength-score">@dimension.Score/100</div>
+                                    <p class="strength-note">@dimension.ConfidenceNote</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="no-strengths">Foundational work needed across all assessed dimensions.</p>
+                    }
+                </div>
+
+                <!-- Dimension Risk Matrix -->
+                <div class="investor-section">
+                    <h2>Comprehensive Risk Matrix</h2>
+                    <div class="risk-matrix">
+                        <table class="matrix-table">
+                            <thead>
+                                <tr>
+                                    <th>Dimension</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Confidence</th>
+                                    <th>Key Assessment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var dimension in DiagnosticResults.DimensionScores.OrderBy(d => d.Score))
+                                {
+                                    <tr class="@dimension.Status.ToLower()">
+                                        <td><strong>@dimension.DimensionName</strong></td>
+                                        <td class="score-cell">@dimension.Score/100</td>
+                                        <td><span class="status-indicator @dimension.Status.ToLower()">@dimension.Status</span></td>
+                                        <td>@dimension.ConfidenceLevel%</td>
+                                        <td class="assessment-cell">@dimension.ConfidenceNote</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Due Diligence Notes -->
+                <div class="investor-section print-break-before">
+                    <h2>Due Diligence Considerations</h2>
+                    <div class="dd-notes">
+                        <div class="dd-item">
+                            <strong>Assessment Method:</strong>
+                            <p>Comprehensive diagnostic based on TB Software Readiness Framework™, incorporating YC Startup School criteria and Techstars due diligence standards.</p>
+                        </div>
+                        <div class="dd-item">
+                            <strong>Data Quality:</strong>
+                            <p>Assessment confidence: @DiagnosticResults.OverallConfidence% based on @DiagnosticResults.QuestionsAnswered questions answered. Responses analyzed for consistency and depth.</p>
+                        </div>
+                        <div class="dd-item">
+                            <strong>Recommended Follow-Up:</strong>
+                            <p>@GetDDRecommendation(DiagnosticResults.OverallStatus)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Note -->
+                <div class="investor-footer">
+                    <p class="disclaimer">This risk brief is generated from founder-provided information and should be used as one input in the due diligence process. Verify critical claims through independent analysis.</p>
+                    <p class="generated-date">Generated: @DiagnosticResults.GeneratedAt.ToString("MMMM d, yyyy 'at' h:mm tt")</p>
+                </div>
+            </div>
+        }
+
+        <!-- Actions - shown in both views but hidden in print for investor view -->
         <div class="results-actions">
             <button class="btn-primary" @onclick="DownloadRoadmap">Download 90-Day Roadmap</button>
             <button class="btn-secondary" @onclick="ViewInvestorBrief">View Investor Brief</button>
@@ -248,6 +445,7 @@
     private string ErrorMessage = "";
     private bool DownloadingPdf = false;
     private string DownloadError = "";
+    private string ViewMode = "founder"; // "founder" or "investor"
 
     protected override async Task OnInitializedAsync()
     {
@@ -507,6 +705,50 @@
         "Yellow" => "Some solid fundamentals, but clear areas to improve. Let's prioritize.",
         "Red" => "Significant gaps identified. Let's build a focused 90-day plan to close them.",
         _ => "Assessment complete."
+    };
+
+    private void SwitchView(string mode)
+    {
+        ViewMode = mode;
+        SelectedDimension = null; // Clear drill-down when switching views
+        StateHasChanged();
+    }
+
+    private async Task PrintInvestorBrief()
+    {
+        // Trigger browser print dialog
+        await JS.InvokeVoidAsync("print");
+    }
+
+    private string GetInvestorStatusLabel(string status) => status switch
+    {
+        "Green" => "Low Risk - Strong Fundamentals",
+        "Yellow" => "Moderate Risk - Attention Needed",
+        "Red" => "High Risk - Critical Gaps",
+        _ => "Assessment Pending"
+    };
+
+    private string GetInvestorSummary(string status, int score) => status switch
+    {
+        "Green" => $"This startup demonstrates strong fundamentals across assessed dimensions ({score}/100). Due diligence should focus on validating claimed metrics and exploring edge cases in high-performing areas.",
+        "Yellow" => $"Mixed performance across key dimensions ({score}/100). Several areas require attention before investment. Recommend focused improvement plan with 60-90 day milestones before committing capital.",
+        "Red" => $"Critical gaps identified across multiple dimensions ({score}/100). Significant operational and strategic work needed. Consider advisory support or revisit after demonstrated progress in red-flag areas.",
+        _ => "Comprehensive assessment of startup readiness and risk profile."
+    };
+
+    private string GetRiskClass(int score) => score switch
+    {
+        >= 75 => "low-risk",
+        >= 50 => "moderate-risk",
+        _ => "high-risk"
+    };
+
+    private string GetDDRecommendation(string status) => status switch
+    {
+        "Green" => "Validate claimed traction metrics, review financial model assumptions, and conduct reference calls with customers and advisors. Assess team dynamics through extended conversations.",
+        "Yellow" => "Deep dive on yellow/red dimensions with specific questions. Request 30-60-90 day improvement roadmap. Consider conditional term sheet with milestone-based tranches.",
+        "Red" => "Recommend operational support (advisor, fractional exec, or incubator) before capital deployment. Revisit investment decision after 90 days of focused improvement.",
+        _ => "Standard due diligence process recommended."
     };
 
     private void DownloadRoadmap()
