@@ -15,15 +15,18 @@ public class AuthController : ControllerBase
 {
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IMagicLinkService _magicLinkService;
+    private readonly IFounderService _founderService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IJwtTokenService jwtTokenService,
         IMagicLinkService magicLinkService,
+        IFounderService founderService,
         ILogger<AuthController> logger)
     {
         _jwtTokenService = jwtTokenService;
         _magicLinkService = magicLinkService;
+        _founderService = founderService;
         _logger = logger;
     }
 
@@ -78,7 +81,7 @@ public class AuthController : ControllerBase
     /// <returns>Access and refresh tokens if verification succeeds.</returns>
     [HttpPost("verify")]
     [AllowAnonymous]
-    public ActionResult<TokenResponseDto> VerifyMagicLink(
+    public async Task<ActionResult<TokenResponseDto>> VerifyMagicLink(
         [FromBody] MagicLinkVerifyRequestDto request)
     {
         var correlationId = HttpContext.GetCorrelationId();
@@ -112,6 +115,10 @@ public class AuthController : ControllerBase
         var founderId = Convert.ToBase64String(
             System.Security.Cryptography.SHA256.HashData(
                 System.Text.Encoding.UTF8.GetBytes(email))).Substring(0, 8);
+
+        // Get or create founder record
+        var founder = await _founderService.GetOrCreateFounderAsync(email);
+        founderId = founder.Id;
 
         // Generate JWT tokens
         var accessToken = _jwtTokenService.GenerateAccessToken(founderId, email);

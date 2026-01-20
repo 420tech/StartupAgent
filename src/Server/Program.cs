@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StartupAgent.Data;
+using StartupAgent.Data.Repositories;
 using StartupAgent.Modules.Shared.Middleware;
 using StartupAgent.Modules.Shared.Services;
 using System.IdentityModel.Tokens.Jwt;
@@ -71,6 +72,8 @@ builder.Services.AddAuthorization(options =>
 // Add services
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IMagicLinkService, MagicLinkService>();
+builder.Services.AddScoped<IFounderRepository, FounderRepository>();
+builder.Services.AddScoped<IFounderService, FounderService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
