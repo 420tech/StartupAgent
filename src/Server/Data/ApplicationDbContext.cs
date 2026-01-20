@@ -1,0 +1,123 @@
+using Microsoft.EntityFrameworkCore;
+using StartupAgent.Shared.Models;
+
+namespace StartupAgent.Data;
+
+/// <summary>
+/// Application database context for StartupAgent.
+/// Manages all entity configurations and migrations.
+/// </summary>
+public class ApplicationDbContext : DbContext
+{
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+
+    /// <summary>
+    /// Founders table.
+    /// </summary>
+    public DbSet<Founder> Founders { get; set; }
+
+    /// <summary>
+    /// Sessions table (diagnostic progress tracking).
+    /// </summary>
+    public DbSet<Session> Sessions { get; set; }
+
+    /// <summary>
+    /// Assessments table (completed diagnostic results).
+    /// </summary>
+    public DbSet<Assessment> Assessments { get; set; }
+
+    /// <summary>
+    /// Deck analyses table (optional pitch deck AI analysis).
+    /// </summary>
+    public DbSet<DeckAnalysis> DeckAnalyses { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Configure Founder entity
+        modelBuilder.Entity<Founder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.DisplayName).HasMaxLength(255);
+            entity.Property(e => e.StartupName).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt).ValueGeneratedOnAddOrUpdate();
+
+            // Unique email constraint
+            entity.HasIndex(e => e.Email).IsUnique();
+
+            // Relationships
+            entity.HasMany(e => e.Sessions)
+                .WithOne(s => s.Founder)
+                .HasForeignKey(s => s.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Assessments)
+                .WithOne(a => a.Founder)
+                .HasForeignKey(a => a.FounderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Session entity
+        modelBuilder.Entity<Session>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FounderId).IsRequired();
+            entity.Property(e => e.ProgressState).IsRequired();
+            entity.Property(e => e.AnswersJson).IsRequired().HasDefaultValue("{}");
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedAt).ValueGeneratedOnAddOrUpdate();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.FounderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+        });
+
+        // Configure Assessment entity
+        modelBuilder.Entity<Assessment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FounderId).IsRequired();
+            entity.Property(e => e.OverallScore).IsRequired();
+            entity.Property(e => e.DimensionScoresJson).IsRequired().HasDefaultValue("{}");
+            entity.Property(e => e.RoadmapText).IsRequired();
+            entity.Property(e => e.RiskBriefText).IsRequired();
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.FounderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+
+            // Relationship to DeckAnalysis (one-to-one)
+            entity.HasOne(a => a.DeckAnalysis)
+                .WithOne(d => d.Assessment)
+                .HasForeignKey<DeckAnalysis>(d => d.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure DeckAnalysis entity
+        modelBuilder.Entity<DeckAnalysis>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AssessmentId).IsRequired();
+            entity.Property(e => e.FileUrl).IsRequired();
+            entity.Property(e => e.FileName).IsRequired();
+            entity.Property(e => e.InsightsJson).IsRequired().HasDefaultValue("{}");
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+        });
+    }
+}

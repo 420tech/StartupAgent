@@ -1,10 +1,20 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StartupAgent.Data;
 using StartupAgent.Modules.Shared.Middleware;
 using StartupAgent.Modules.Shared.Services;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure database
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString, sqlOptions =>
+        sqlOptions.MigrationsAssembly("StartupAgent")));
 
 // Configure JWT authentication
 var jwtSigningKey = builder.Configuration["Auth:JwtSigningKey"]
