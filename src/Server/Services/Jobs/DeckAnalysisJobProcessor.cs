@@ -15,6 +15,7 @@ public class DeckAnalysisJobProcessor : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IDeckAnalysisJobQueue _jobQueue;
+    private readonly IDeckAnalysisNotificationQueue _notificationQueue;
     private readonly ILogger<DeckAnalysisJobProcessor> _logger;
     private const int MaxRetries = 3;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(2);
@@ -22,10 +23,12 @@ public class DeckAnalysisJobProcessor : BackgroundService
     public DeckAnalysisJobProcessor(
         IServiceProvider serviceProvider,
         IDeckAnalysisJobQueue jobQueue,
+        IDeckAnalysisNotificationQueue notificationQueue,
         ILogger<DeckAnalysisJobProcessor> logger)
     {
         _serviceProvider = serviceProvider;
         _jobQueue = jobQueue;
+        _notificationQueue = notificationQueue;
         _logger = logger;
     }
 
@@ -104,6 +107,35 @@ public class DeckAnalysisJobProcessor : BackgroundService
             await context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Deck analysis succeeded: {DeckAnalysisId}", deckAnalysisId);
+
+            // Queue success notification
+            var founder = await context.Founders
+                .FirstOrDefaultAsync(f => f.Id == deckAnalysis.Assessment!.FounderId, cancellationToken);
+
+            if (founder != null)
+            {
+                var successNotification = new DeckAnalysisNotification
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DeckAnalysisId = deckAnalysisId,
+                    FounderId = founder.Id,
+                    Email = founder.Email,
+                    NotificationType = DeckAnalysisNotificationType.Success,
+                    Status = DeckAnalysisNotificationStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                context.DeckAnalysisNotifications.Add(successNotification);
+                await context.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Success notification {NotificationId} created and queued for deck {DeckAnalysisId}",
+                    successNotification.Id,
+                    deckAnalysisId);
+
+                await _notificationQueue.QueueJobAsync(successNotification.Id, cancellationToken);
+            }
         }
         catch (TimeoutException ex)
         {
@@ -124,6 +156,7 @@ public class DeckAnalysisJobProcessor : BackgroundService
         CancellationToken cancellationToken)
     {
         var deckAnalysis = await context.DeckAnalyses
+            .Include(d => d.Assessment)
             .FirstOrDefaultAsync(d => d.Id == deckAnalysisId, cancellationToken);
 
         if (deckAnalysis == null)
@@ -162,6 +195,35 @@ public class DeckAnalysisJobProcessor : BackgroundService
                 "Deck analysis failed after {MaxRetries} retries: {DeckAnalysisId}",
                 MaxRetries,
                 deckAnalysisId);
+
+            // Queue failure notification
+            var founder = await context.Founders
+                .FirstOrDefaultAsync(f => f.Id == deckAnalysis.Assessment!.FounderId, cancellationToken);
+
+            if (founder != null)
+            {
+                var failureNotification = new DeckAnalysisNotification
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DeckAnalysisId = deckAnalysisId,
+                    FounderId = founder.Id,
+                    Email = founder.Email,
+                    NotificationType = DeckAnalysisNotificationType.Failure,
+                    Status = DeckAnalysisNotificationStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                context.DeckAnalysisNotifications.Add(failureNotification);
+                await context.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Failure notification {NotificationId} created and queued for deck {DeckAnalysisId}",
+                    failureNotification.Id,
+                    deckAnalysisId);
+
+                await _notificationQueue.QueueJobAsync(failureNotification.Id, cancellationToken);
+            }
         }
     }
 }

@@ -189,7 +189,8 @@ public class DeckUploadController(
                 completedAt = deckAnalysis.CompletedAt,
                 retryCount = deckAnalysis.RetryCount,
                 errorMessage = deckAnalysis.ErrorMessage,
-                hasInsights = !string.IsNullOrEmpty(deckAnalysis.InsightsJson) && deckAnalysis.InsightsJson != "{}"
+                hasInsights = !string.IsNullOrEmpty(deckAnalysis.InsightsJson) && deckAnalysis.InsightsJson != "{}",
+                hasNotifications = await _context.DeckAnalysisNotifications.AnyAsync(n => n.DeckAnalysisId == deckAnalysis.Id, cancellationToken)
             });
         }
         catch (Exception ex)
