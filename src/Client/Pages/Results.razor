@@ -1,8 +1,11 @@
 @page "/results/{SessionId}"
 @using StartupAgent.Client.Services
 @using StartupAgent.Shared.Models.Scoring
+@using Microsoft.JSInterop
 @inject SessionApiClient ApiClient
 @inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject HttpClient Http
 
 <div class="results-container">
     @if (Loading)
@@ -25,6 +28,28 @@
         <div class="results-header">
             <h1>Your Diagnostic Results</h1>
             <p class="timestamp">Completed on @DiagnosticResults.GeneratedAt.ToString("MMMM d, yyyy")</p>
+            
+            <!-- Download Roadmap Button -->
+            <div class="action-buttons">
+                <button class="btn-download" @onclick="DownloadRoadmapPdf" disabled="@DownloadingPdf">
+                    @if (DownloadingPdf)
+                    {
+                        <span class="spinner-small"></span>
+                        <span>Generating PDF...</span>
+                    }
+                    else
+                    {
+                        <span>📄 Download 90-Day Roadmap</span>
+                    }
+                </button>
+                @if (!string.IsNullOrEmpty(DownloadError))
+                {
+                    <div class="download-error">
+                        <p>@DownloadError</p>
+                        <button class="btn-retry" @onclick="DownloadRoadmapPdf">Try Again</button>
+                    </div>
+                }
+            </div>
         </div>
 
         <!-- Overall Score Section -->
@@ -221,6 +246,8 @@
     private bool Loading = true;
     private bool Error = false;
     private string ErrorMessage = "";
+    private bool DownloadingPdf = false;
+    private string DownloadError = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -339,6 +366,65 @@
     private async Task RetryLoad()
     {
         await LoadResults();
+    }
+
+    private async Task DownloadRoadmapPdf()
+    {
+        if (string.IsNullOrEmpty(SessionId)) return;
+
+        DownloadingPdf = true;
+        DownloadError = "";
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.GetAsync($"/api/v1/diagnostics/{SessionId}/roadmap-pdf");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"StartupAgent-Roadmap-{DateTime.UtcNow:yyyyMMdd}.pdf";
+                
+                // Trigger browser download using JavaScript interop
+                await DownloadFile(fileName, pdfBytes);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                DownloadError = "Failed to generate PDF. Please try again.";
+                
+                // Log error for telemetry
+                Console.Error.WriteLine($"PDF download failed: {response.StatusCode} - {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            DownloadError = "Unable to download PDF. Please check your connection and try again.";
+            Console.Error.WriteLine($"PDF download exception: {ex.Message}");
+        }
+        finally
+        {
+            DownloadingPdf = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadFile(string fileName, byte[] fileBytes)
+    {
+        // Convert to base64 for JavaScript
+        var base64 = Convert.ToBase64String(fileBytes);
+        var dataUrl = $"data:application/pdf;base64,{base64}";
+        
+        // Use JavaScript to trigger download
+        await JS.InvokeVoidAsync("eval", 
+            $@"(function() {{
+                const link = document.createElement('a');
+                link.href = '{dataUrl}';
+                link.download = '{fileName}';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }})()");
     }
 
     private void ViewDimensionDetails(DimensionScore dimension)
