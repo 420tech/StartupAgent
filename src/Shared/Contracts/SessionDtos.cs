@@ -54,6 +54,58 @@ public class SubmitAnswerDto
 }
 
 /// <summary>
+/// Request DTO for auto-saving an answer (with rowversion for optimistic concurrency).
+/// </summary>
+public class AutoSaveAnswerDto
+{
+    /// <summary>
+    /// The question ID being answered.
+    /// </summary>
+    public string QuestionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The answer being saved.
+    /// </summary>
+    public string Answer { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Rowversion from client for optimistic concurrency control.
+    /// </summary>
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// Response DTO for auto-save result.
+/// </summary>
+public class AutoSaveResultDto
+{
+    /// <summary>
+    /// Session ID.
+    /// </summary>
+    public string SessionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Updated rowversion from server.
+    /// </summary>
+    public byte[]? RowVersion { get; set; }
+
+    /// <summary>
+    /// Timestamp of save.
+    /// </summary>
+    public DateTime SavedAt { get; set; }
+
+    /// <summary>
+    /// Whether save was successful.
+    /// </summary>
+    public bool Success { get; set; } = true;
+
+    /// <summary>
+    /// Message if any.
+    /// </summary>
+    public string? Message { get; set; }
+}
+
+/// <summary>
 /// Response DTO for session information.
 /// </summary>
 public class SessionDto

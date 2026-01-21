@@ -94,6 +94,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Status).IsRequired();
             entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
             entity.Property(e => e.UpdatedAt).ValueGeneratedOnAddOrUpdate();
+            
+            // Optimistic concurrency control
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .HasColumnName("RowVersion");
 
             // Indexes for fast queries
             entity.HasIndex(e => e.FounderId);

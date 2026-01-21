@@ -113,6 +113,9 @@ builder.Services.AddHostedService<RecoveryEmailJobProcessor>();
 builder.Services.AddSingleton<IDeckAnalysisNotificationQueue, DeckAnalysisNotificationQueue>();
 builder.Services.AddHostedService<DeckAnalysisNotificationProcessor>();
 
+// Session cleanup background job (24h retention policy for incomplete sessions)
+builder.Services.AddHostedService<SessionCleanupJobService>();
+
 // Add controllers and validation
 builder.Services.AddControllers();
 
