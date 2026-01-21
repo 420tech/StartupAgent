@@ -32,6 +32,12 @@ public interface IDeckAnalysisNotificationService
 /// </summary>
 public class DeckAnalysisNotificationService : IDeckAnalysisNotificationService
 {
+    private readonly ITemplateRenderer _renderer;
+
+    public DeckAnalysisNotificationService(ITemplateRenderer renderer)
+    {
+        _renderer = renderer;
+    }
     public async Task<EmailSendResult> SendSuccessNotificationAsync(
         DeckAnalysisNotification notification,
         DeckAnalysis deckAnalysis,
@@ -43,8 +49,24 @@ public class DeckAnalysisNotificationService : IDeckAnalysisNotificationService
             Console.WriteLine(
                 $"[{notification.CorrelationId}] Sending deck analysis success notification to {founder.Email}");
 
-            // Build HTML content for success
-            var htmlContent = BuildSuccessEmailHtml(founder, deckAnalysis);
+            // Try template rendering first (success)
+            var variables = new Dictionary<string, string>
+            {
+                ["founderName"] = !string.IsNullOrEmpty(founder.DisplayName) ? founder.DisplayName : founder.Email.Split('@')[0],
+                ["completedTime"] = (deckAnalysis.CompletedAt?.ToString("MMM d, yyyy 'at' h:mm tt") ?? "Recently"),
+                ["originalFileName"] = deckAnalysis.OriginalFileName ?? deckAnalysis.FileName
+            };
+
+            var rendered = await _renderer.RenderAsync(
+                templateCode: "deck-analysis-results-email",
+                language: EmailTemplateLanguage.English,
+                variables: variables,
+                useHtml: true,
+                cancellationToken: cancellationToken);
+
+            var htmlContent = string.IsNullOrWhiteSpace(rendered.Body)
+                ? BuildSuccessEmailHtml(founder, deckAnalysis)
+                : rendered.Body;
 
             // TODO: Replace with actual email service (SendGrid, AWS SES, etc.)
             // For now, simulate email send with delay
@@ -98,8 +120,24 @@ public class DeckAnalysisNotificationService : IDeckAnalysisNotificationService
             Console.WriteLine(
                 $"[{notification.CorrelationId}] Sending deck analysis failure notification to {founder.Email}");
 
-            // Build HTML content for failure
-            var htmlContent = BuildFailureEmailHtml(founder, deckAnalysis);
+            // Try template rendering first (failure)
+            var variables = new Dictionary<string, string>
+            {
+                ["founderName"] = !string.IsNullOrEmpty(founder.DisplayName) ? founder.DisplayName : founder.Email.Split('@')[0],
+                ["originalFileName"] = deckAnalysis.OriginalFileName ?? deckAnalysis.FileName,
+                ["status"] = "Review needed"
+            };
+
+            var rendered = await _renderer.RenderAsync(
+                templateCode: "deck-analysis-failure-email",
+                language: EmailTemplateLanguage.English,
+                variables: variables,
+                useHtml: true,
+                cancellationToken: cancellationToken);
+
+            var htmlContent = string.IsNullOrWhiteSpace(rendered.Body)
+                ? BuildFailureEmailHtml(founder, deckAnalysis)
+                : rendered.Body;
 
             // TODO: Replace with actual email service (SendGrid, AWS SES, etc.)
             // For now, simulate email send with delay
