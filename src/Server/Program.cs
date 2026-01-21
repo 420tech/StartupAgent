@@ -96,6 +96,7 @@ builder.Services.AddScoped<IScoringService, ScoringService>();
 builder.Services.AddScoped<INarrativeService, NarrativeService>();
 builder.Services.AddScoped<IRoadmapPdfService, RoadmapPdfService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<ITemplateRenderer, EmailTemplateRenderer>();
 builder.Services.AddScoped<IBookingEmailService, BookingEmailService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingEventTrackingService, BookingEventTrackingService>();

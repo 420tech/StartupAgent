@@ -1,4 +1,5 @@
 using StartupAgent.Shared.Models.Booking;
+using StartupAgent.Shared.Models;
 
 namespace StartupAgent.Shared.Services.Email;
 
@@ -19,6 +20,12 @@ public class BookingEmailService : IBookingEmailService
 {
     private const int MaxRetries = 3;
     private readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
+    private readonly ITemplateRenderer _renderer;
+
+    public BookingEmailService(ITemplateRenderer renderer)
+    {
+        _renderer = renderer;
+    }
 
     public async Task<EmailSendResult> SendBookingConfirmationAsync(
         BookingConfirmation booking,
@@ -94,7 +101,28 @@ public class BookingEmailService : IBookingEmailService
             // 3. Track delivery status
             // 4. Implement idempotency (using CorrelationId)
 
-            var emailContent = GenerateConfirmationEmailHtml(booking);
+            // Try template rendering first
+            var variables = new Dictionary<string, string>
+            {
+                ["founderName"] = booking.FounderName,
+                ["scheduledAt"] = booking.ScheduledAt.ToString("MMMM d, yyyy 'at' h:mm tt") + " UTC",
+                ["durationMinutes"] = booking.DurationMinutes.ToString(),
+                ["priceUsd"] = booking.PriceUsd.ToString(),
+                ["paymentLink"] = booking.PaymentLink,
+                ["bookingId"] = booking.BookingId,
+                ["sessionId"] = booking.SessionId
+            };
+
+            var rendered = await _renderer.RenderAsync(
+                templateCode: "booking-confirmation-email",
+                language: EmailTemplateLanguage.English,
+                variables: variables,
+                useHtml: true,
+                cancellationToken: cancellationToken);
+
+            var emailContent = string.IsNullOrWhiteSpace(rendered.Body)
+                ? GenerateConfirmationEmailHtml(booking) // fallback
+                : rendered.Body;
 
             // Placeholder: Simulate email send
             Console.WriteLine(
