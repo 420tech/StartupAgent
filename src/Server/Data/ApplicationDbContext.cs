@@ -338,8 +338,77 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
 
             // Indexes for fast queries
-            entity.HasIndex(e => e.TemplateCode);
-            entity.HasIndex(e => e.IsActive);
-        });
+                entity.HasIndex(e => e.TemplateCode);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            // Seed default email templates
+            var sessionRecoveryTemplate = new EmailTemplate
+            {
+                Id = "tpl-001",
+                TemplateCode = "session-recovery-email",
+                Name = "Session Recovery Email",
+                Type = EmailTemplateType.SessionRecovery,
+                Language = EmailTemplateLanguage.English,
+                Subject = "{{founderName}}, Your StartupAgent Assessment is Waiting",
+                HtmlBody = @"<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset=""UTF-8"">
+        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; margin: 20px 0; font-weight: bold; }
+            .highlight { background: #fffbcd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; font-size: 12px; color: #666; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""header"">
+                <h1>Welcome Back, {{founderName}}!</h1>
+            </div>
+            <div class=""content"">
+                <p>Hi {{founderName}},</p>
+                <p>We noticed you stepped away from your StartupAgent diagnostic assessment. No worries! Your progress has been saved.</p>
+                <div class=""highlight"">
+                    <strong>Ready to continue?</strong> Click below to resume your assessment and unlock personalized insights for your startup.
+                </div>
+                <a href=""{{resumeLink}}"" class=""button"">Resume My Assessment</a>
+                <p>Questions? We're here to help. Just reply to this email.</p>
+            </div>
+            <div class=""footer"">
+                <p>© 2026 StartupAgent. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>",
+                PlainTextBody = @"Hi {{founderName}},
+
+    We noticed you stepped away from your StartupAgent diagnostic assessment. No worries! Your progress has been saved.
+
+    Ready to continue? Click the link below to resume your assessment:
+    {{resumeLink}}
+
+    Questions? We're here to help. Just reply to this email.
+
+    © 2026 StartupAgent. All rights reserved.",
+                Variables = "founderName,resumeLink",
+                Description = "Transactional email sent to founders who have dropped off from a session to encourage them to resume",
+                IsActive = true,
+                Version = 1,
+                CreatedBy = "system",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = "system",
+                UpdatedAt = DateTime.UtcNow,
+                PublishedAt = DateTime.UtcNow,
+                IsArchived = false
+            };
+
+            modelBuilder.Entity<EmailTemplate>().HasData(sessionRecoveryTemplate);
+        }
     }
-}
