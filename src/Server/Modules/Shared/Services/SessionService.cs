@@ -44,6 +44,11 @@ public interface ISessionService
     /// Resume an incomplete session.
     /// </summary>
     Task<SessionDto?> ResumeSessionAsync(string sessionId);
+
+    /// <summary>
+    /// Auto-save an answer with optimistic concurrency control.
+    /// </summary>
+    Task<AutoSaveResultDto> AutoSaveAnswerAsync(string sessionId, AutoSaveAnswerDto dto);
 }
 
 /// <summary>
@@ -287,6 +292,67 @@ public class SessionService : ISessionService
         _logger.LogInformation("Session resumed: {SessionId}", sessionId);
 
         return MapToDto(session);
+    }
+
+    public async Task<AutoSaveResultDto> AutoSaveAnswerAsync(string sessionId, AutoSaveAnswerDto dto)
+    {
+        try
+        {
+            var session = await _sessionRepository.GetByIdAsync(sessionId);
+            if (session == null)
+            {
+                return new AutoSaveResultDto
+                {
+                    SessionId = sessionId,
+                    Success = false,
+                    Message = "Session not found"
+                };
+            }
+
+            if (session.Status != SessionStatus.Active)
+            {
+                return new AutoSaveResultDto
+                {
+                    SessionId = sessionId,
+                    Success = false,
+                    Message = "Session is not active"
+                };
+            }
+
+            // Parse current answers
+            var answers = JsonSerializer.Deserialize<Dictionary<string, string>>(session.AnswersJson) ?? new();
+
+            // Update answer
+            answers[dto.QuestionId] = dto.Answer;
+            session.AnswersJson = JsonSerializer.Serialize(answers);
+            session.UpdatedAt = DateTime.UtcNow;
+
+            await _sessionRepository.UpdateAsync(session);
+            await _sessionRepository.SaveChangesAsync();
+
+            _logger.LogDebug(
+                "Answer auto-saved for session {SessionId}, question {QuestionId}",
+                sessionId, dto.QuestionId);
+
+            return new AutoSaveResultDto
+            {
+                SessionId = sessionId,
+                RowVersion = session.RowVersion,
+                SavedAt = session.UpdatedAt,
+                Success = true,
+                Message = "Answer auto-saved successfully"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error auto-saving answer for session {SessionId}", sessionId);
+            return new AutoSaveResultDto
+            {
+                SessionId = sessionId,
+                Success = false,
+                Message = "Error saving answer"
+            };
+        }
     }
 
     private static SessionDto MapToDto(Session session)

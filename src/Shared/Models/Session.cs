@@ -54,5 +54,14 @@ public class Session
     /// <summary>
     /// Timestamp when session was completed (if applicable).
     /// </summary>
+    /// <summary>
+    /// Timestamp when session was completed (if applicable).
+    /// </summary>
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>
+    /// Optimistic concurrency control token for auto-save conflicts.
+    /// SQL Server rowversion incremented on each update.
+    /// </summary>
+    public byte[]? RowVersion { get; set; }
 }

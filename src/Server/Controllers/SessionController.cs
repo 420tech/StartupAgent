@@ -280,4 +280,59 @@ public class SessionController : ControllerBase
 
         return Ok(resumedSession);
     }
+
+    /// <summary>
+    /// Auto-save current answer (optimistic concurrency with rowversion).
+    /// Saves answer within 2 seconds with conflict detection.
+    /// </summary>
+    [HttpPost("{sessionId}/auto-save")]
+    [ProducesResponseType(typeof(AutoSaveResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AutoSaveResultDto>> AutoSaveAnswer(
+        string sessionId,
+        [FromBody] AutoSaveAnswerDto dto,
+        CancellationToken cancellationToken)
+    {
+        var founderId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(founderId))
+        {
+            return Unauthorized();
+        }
+
+        var session = await _sessionService.GetSessionAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        if (session.FounderId != founderId)
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrEmpty(dto.Answer))
+        {
+            return BadRequest(new { message = "Answer cannot be empty" });
+        }
+
+        try
+        {
+            // Auto-save with optimistic concurrency
+            var result = await _sessionService.AutoSaveAnswerAsync(sessionId, dto);
+
+            _logger.LogInformation(
+                "Auto-saved answer for session {SessionId}, question {QuestionId}",
+                sessionId,
+                dto.QuestionId);
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Auto-save failed for session {SessionId}", sessionId);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
