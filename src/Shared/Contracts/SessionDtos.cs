@@ -207,3 +207,14 @@ public class SessionResultsDto
     /// </summary>
     public string RiskBriefText { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Request DTO for abandoning a session.
+/// </summary>
+public class AbandonSessionDto
+{
+    /// <summary>
+    /// Reason for abandonment (optional feedback).
+    /// </summary>
+    public string? Reason { get; set; }
+}
