@@ -410,5 +410,286 @@ public class ApplicationDbContext : DbContext
             };
 
             modelBuilder.Entity<EmailTemplate>().HasData(sessionRecoveryTemplate);
+
+            // Seed booking confirmation template
+            var bookingConfirmationTemplate = new EmailTemplate
+            {
+                Id = "tpl-002",
+                TemplateCode = "booking-confirmation-email",
+                Name = "Booking Confirmation Email",
+                Type = EmailTemplateType.BookingConfirmation,
+                Language = EmailTemplateLanguage.English,
+                Subject = "Your Strategy Call is Confirmed, {{founderName}}",
+                HtmlBody = @"<!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #0EA5E9, #06B6D4); color: white; padding: 24px; border-radius: 8px; margin-bottom: 24px; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px; }
+            .detail { margin: 12px 0; }
+            .detail-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .detail-value { font-size: 16px; font-weight: 600; color: #0EA5E9; }
+            .cta-button { display: inline-block; background: linear-gradient(135deg, #0EA5E9, #06B6D4); color: white; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 20px 0; }
+            .footer { color: #666; font-size: 12px; text-align: center; margin-top: 32px; }
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""header"">
+                <h1>Strategy Call Confirmed! 📅</h1>
+            </div>
+
+            <div class=""content"">
+                <p>Hi {{founderName}},</p>
+
+                <p>Your {{durationMinutes}}-minute strategy call with Tim is confirmed. Here are the details:</p>
+
+                <div class=""detail"">
+                    <div class=""detail-label"">Scheduled Date & Time</div>
+                    <div class=""detail-value"">{{scheduledAt}}</div>
+                </div>
+
+                <div class=""detail"">
+                    <div class=""detail-label"">Duration</div>
+                    <div class=""detail-value"">{{durationMinutes}} minutes</div>
+                </div>
+
+                <div class=""detail"">
+                    <div class=""detail-label"">Price</div>
+                    <div class=""detail-value"">${{priceUsd}}</div>
+                </div>
+
+                <p>To complete payment and secure your spot, click the button below:</p>
+
+                <a href=""{{paymentLink}}"" class=""cta-button"">Complete Payment</a>
+
+                <p>A Zoom link will be sent to your email once payment is confirmed.</p>
+
+                <p>Questions? Reply to this email and we'll help you out.</p>
+
+                <p>Best,<br>Tim from StartupAgent</p>
+            </div>
+
+            <div class=""footer"">
+                <p>Booking ID: {{bookingId}}<br>
+                Session ID: {{sessionId}}</p>
+            </div>
+        </div>
+    </body>
+    </html>",
+                PlainTextBody = @"Hi {{founderName}},
+
+    Your {{durationMinutes}}-minute strategy call with Tim is confirmed.
+    Scheduled: {{scheduledAt}}
+    Price: ${{priceUsd}}
+
+    Complete payment here: {{paymentLink}}
+
+    Booking ID: {{bookingId}}
+    Session ID: {{sessionId}}
+
+    Best,
+    StartupAgent",
+                Variables = "founderName,scheduledAt,durationMinutes,priceUsd,paymentLink,bookingId,sessionId",
+                Description = "Transactional confirmation email for booked strategy calls",
+                IsActive = true,
+                Version = 1,
+                CreatedBy = "system",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = "system",
+                UpdatedAt = DateTime.UtcNow,
+                PublishedAt = DateTime.UtcNow,
+                IsArchived = false
+            };
+
+            // Seed deck analysis success template
+            var deckAnalysisSuccessTemplate = new EmailTemplate
+            {
+                Id = "tpl-003",
+                TemplateCode = "deck-analysis-results-email",
+                Name = "Deck Analysis Results Email",
+                Type = EmailTemplateType.DeckAnalysisResults,
+                Language = EmailTemplateLanguage.English,
+                Subject = "Your Deck Analysis is Ready, {{founderName}}",
+                HtmlBody = @"<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset=""UTF-8"">
+        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .success-badge { display: inline-block; background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0; }
+            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; margin: 20px 0; font-weight: bold; }
+            .highlight { background: #e8f5e9; padding: 15px; border-left: 4px solid #4caf50; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; font-size: 12px; color: #666; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""header"">
+                <h1>Your Deck Analysis is Ready! 🎉</h1>
+            </div>
+            <div class=""content"">
+                <p>Hi {{founderName}},</p>
+
+                <p>Great news! Your pitch deck has been analyzed and insights are ready.</p>
+
+                <div class=""success-badge"">✓ Analysis Complete</div>
+
+                <div class=""highlight"">
+                    <strong>Analysis completed at {{completedTime}}</strong><br>
+                    File: {{originalFileName}}
+                </div>
+
+                <p><strong>What's Next?</strong></p>
+                <ul>
+                    <li>Log in to your StartupAgent dashboard to view full insights</li>
+                    <li>See TAM/GTM clarity, governance signals, and storytelling scores</li>
+                    <li>Identify red flags and recommended follow-ups</li>
+                </ul>
+
+                <a href=""https://startupaigent.com/dashboard"" class=""button"">View Your Insights</a>
+
+                <p style=""margin-top: 30px;"">
+                    <strong>Want personalized guidance?</strong><br>
+                    Book a call with Tim to discuss your deck analysis and get strategic recommendations.
+                </p>
+                <a href=""https://calendly.com/tim-startup"" class=""button"" style=""background: #764ba2;"">Book a Strategy Call</a>
+
+                <p style=""margin-top: 30px; font-style: italic; color: #666;"">
+                    Questions? We're here to help. Just reply to this email.
+                </p>
+            </div>
+
+            <div class=""footer"">
+                <p>© 2026 StartupAgent. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>",
+                PlainTextBody = @"Hi {{founderName}},
+
+    Your pitch deck has been analyzed and insights are ready.
+    Completed at: {{completedTime}}
+    File: {{originalFileName}}
+
+    View your insights: https://startupaigent.com/dashboard
+
+    © 2026 StartupAgent.",
+                Variables = "founderName,completedTime,originalFileName",
+                Description = "Notification email sent when deck analysis results are available",
+                IsActive = true,
+                Version = 1,
+                CreatedBy = "system",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = "system",
+                UpdatedAt = DateTime.UtcNow,
+                PublishedAt = DateTime.UtcNow,
+                IsArchived = false
+            };
+
+            // Seed deck analysis failure template
+            var deckAnalysisFailureTemplate = new EmailTemplate
+            {
+                Id = "tpl-004",
+                TemplateCode = "deck-analysis-failure-email",
+                Name = "Deck Analysis Failure Email",
+                Type = EmailTemplateType.Notification,
+                Language = EmailTemplateLanguage.English,
+                Subject = "Deck Analysis Issue: Action Needed",
+                HtmlBody = @"<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset=""UTF-8"">
+        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .warning-badge { display: inline-block; background: #ff9800; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0; }
+            .button { display: inline-block; background: #ff6b6b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; margin: 20px 0; font-weight: bold; }
+            .secondary-button { background: #667eea; }
+            .highlight { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; font-size: 12px; color: #666; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+        </style>
+    </head>
+    <body>
+        <div class=""container"">
+            <div class=""header"">
+                <h1>Deck Analysis Update</h1>
+            </div>
+            <div class=""content"">
+                <p>Hi {{founderName}},</p>
+
+                <p>We encountered an issue while analyzing your pitch deck. This sometimes happens with complex files or specific formats.</p>
+
+                <div class=""warning-badge"">⚠ Analysis Incomplete</div>
+
+                <div class=""highlight"">
+                    <strong>File:</strong> {{originalFileName}}<br>
+                    <strong>Status:</strong> {{status}}
+                </div>
+
+                <p><strong>Here's what you can do:</strong></p>
+                <ul>
+                    <li><strong>Try again:</strong> Re-upload your deck file (PDF or PowerPoint)</li>
+                    <li><strong>Manual review:</strong> Book a call with Tim for personalized feedback on your deck</li>
+                    <li><strong>Contact support:</strong> Email us for help troubleshooting</li>
+                </ul>
+
+                <a href=""https://startupaigent.com/dashboard"" class=""button"">Try Again</a>
+
+                <p style=""margin-top: 30px;"">
+                    <strong>Prefer personalized guidance?</strong><br>
+                    Book a call with Tim to discuss your deck directly. He can provide detailed feedback tailored to your startup's unique situation.
+                </p>
+                <a href=""https://calendly.com/tim-startup"" class=""button secondary-button"">Book a Strategy Call</a>
+
+                <p style=""margin-top: 30px; font-style: italic; color: #666;"">
+                    Questions? We're here to help. Just reply to this email or contact support.
+                </p>
+            </div>
+
+            <div class=""footer"">
+                <p>© 2026 StartupAgent. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>",
+                PlainTextBody = @"Hi {{founderName}},
+
+    We encountered an issue while analyzing your pitch deck.
+    File: {{originalFileName}}
+    Status: {{status}}
+
+    Try again: https://startupaigent.com/dashboard
+    Book a call: https://calendly.com/tim-startup
+
+    © 2026 StartupAgent.",
+                Variables = "founderName,originalFileName,status",
+                Description = "Notification email sent when deck analysis fails",
+                IsActive = true,
+                Version = 1,
+                CreatedBy = "system",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = "system",
+                UpdatedAt = DateTime.UtcNow,
+                PublishedAt = DateTime.UtcNow,
+                IsArchived = false
+            };
+
+            modelBuilder.Entity<EmailTemplate>().HasData(
+                bookingConfirmationTemplate,
+                deckAnalysisSuccessTemplate,
+                deckAnalysisFailureTemplate);
         }
     }
