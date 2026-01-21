@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using StartupAgent.Server.Services.LLM;
 using StartupAgent.Shared.Models;
 
 namespace StartupAgent.Modules.Shared.Services;
@@ -10,7 +12,7 @@ public interface IMindsetDetectionService
     /// <summary>
     /// Detect founder mindset from opening question answer.
     /// </summary>
-    MindsetType DetectMindsetFromAnswer(string answer);
+    Task<MindsetType> DetectMindsetFromAnswerAsync(string answer, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Refine mindset detection based on subsequent answers.
@@ -25,19 +27,67 @@ public interface IMindsetDetectionService
 public class MindsetDetectionService : IMindsetDetectionService
 {
     private readonly ILogger<MindsetDetectionService> _logger;
+    private readonly ILLMClient _llmClient;
+    private readonly bool _llmEnabled;
 
-    public MindsetDetectionService(ILogger<MindsetDetectionService> logger)
+    public MindsetDetectionService(
+        ILogger<MindsetDetectionService> logger,
+        ILLMClient llmClient,
+        IOptions<LLMOptions> llmOptions)
     {
         _logger = logger;
+        _llmClient = llmClient;
+        _llmEnabled = llmOptions.Value.Enabled;
     }
 
-    public MindsetType DetectMindsetFromAnswer(string answer)
+    public async Task<MindsetType> DetectMindsetFromAnswerAsync(string answer, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(answer))
         {
             return MindsetType.ConfidentButUnsure; // Default mindset
         }
 
+        if (_llmEnabled)
+        {
+            var mindset = await TryDetectWithLlmAsync(answer, cancellationToken);
+            if (mindset.HasValue)
+            {
+                return mindset.Value;
+            }
+        }
+
+        return DetectMindsetViaKeywords(answer);
+    }
+
+    private async Task<MindsetType?> TryDetectWithLlmAsync(string answer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var systemPrompt = "You classify founder tone/mindset from a short answer. Allowed labels: Overwhelmed | Stuck | ConfidentButUnsure | PreFundraise. Respond with exactly one label.";
+            var userPrompt = $"Answer: {answer}";
+            var content = await _llmClient.CompleteChatAsync(systemPrompt, userPrompt, cancellationToken);
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return null;
+            }
+
+            var normalized = content.Trim().ToLowerInvariant();
+            if (normalized.Contains("overwhelmed")) return MindsetType.Overwhelmed;
+            if (normalized.Contains("stuck")) return MindsetType.Stuck;
+            if (normalized.Contains("pre")) return MindsetType.PreFundraise;
+            if (normalized.Contains("confident")) return MindsetType.ConfidentButUnsure;
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "LLM mindset detection failed; falling back to keyword rules");
+            return null;
+        }
+    }
+
+    private MindsetType DetectMindsetViaKeywords(string answer)
+    {
         var lowerAnswer = answer.ToLower();
 
         // Check for overwhelmed indicators

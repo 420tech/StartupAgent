@@ -100,7 +100,7 @@ public class SessionService : ISessionService
         // If mindset answer provided, detect mindset
         if (!string.IsNullOrEmpty(dto.MindsetAnswer))
         {
-            session.DetectedMindset = _mindsetDetectionService.DetectMindsetFromAnswer(dto.MindsetAnswer);
+            session.DetectedMindset = await _mindsetDetectionService.DetectMindsetFromAnswerAsync(dto.MindsetAnswer);
             var answers = new Dictionary<string, string> { { "mindset_opener", dto.MindsetAnswer } };
             session.AnswersJson = JsonSerializer.Serialize(answers);
             session.ProgressState = "q1"; // Move to first real question

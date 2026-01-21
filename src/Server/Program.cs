@@ -9,12 +9,14 @@ using StartupAgent.Shared.Services.Scoring;
 using StartupAgent.Shared.Services.Narrative;
 using StartupAgent.Shared.Services.Pdf;
 using StartupAgent.Server.Services.Email;
+using StartupAgent.Server.Services.LLM;
 using StartupAgent.Shared.Services.Email;
 using StartupAgent.Shared.Services.Booking;
 using StartupAgent.Server.Services.Bookings;
 using StartupAgent.Server.Services.Storage;
 using StartupAgent.Server.Services.Jobs;
 using StartupAgent.Server.Services.Analysis;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -123,6 +125,18 @@ builder.Services.AddHostedService<SessionCleanupJobService>();
 
 // Session inactivity detection background job (5-minute intervals)
 builder.Services.AddHostedService<SessionInactivityDetectionJobService>();
+
+// LLM (OpenRouter) client
+builder.Services.Configure<LLMOptions>(builder.Configuration.GetSection("LLM"));
+builder.Services.AddHttpClient<ILLMClient, OpenRouterClient>((sp, client) =>
+{
+    client.BaseAddress = new Uri("https://openrouter.ai/api/v1/");
+    var opts = sp.GetRequiredService<IOptions<LLMOptions>>().Value;
+    if (opts.TimeoutSeconds > 0)
+    {
+        client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
+    }
+});
 
 // Add controllers and validation
 builder.Services.AddControllers();
