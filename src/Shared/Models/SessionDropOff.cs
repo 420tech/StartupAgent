@@ -81,7 +81,22 @@ public enum SessionDropOffReason
     /// <summary>
     /// Network error or disconnect
     /// </summary>
-    NetworkError = 4
+    NetworkError = 4,
+
+    /// <summary>
+    /// Session inactive for 15+ minutes during diagnostic
+    /// </summary>
+    InactivityDuringDiagnostic = 5,
+
+    /// <summary>
+    /// Founder manually paused the session
+    /// </summary>
+    ManualPause = 6,
+
+    /// <summary>
+    /// Founder explicitly abandoned the diagnostic
+    /// </summary>
+    ExplicitAbandon = 7
 }
 
 /// <summary>

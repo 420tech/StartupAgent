@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StartupAgent.Modules.Shared.Services;
+using StartupAgent.Server.Services.Jobs;
 using StartupAgent.Shared.Contracts;
 
 namespace StartupAgent.Controllers;
@@ -16,15 +17,18 @@ public class SessionController : ControllerBase
 {
     private readonly ISessionService _sessionService;
     private readonly IAssessmentService _assessmentService;
+    private readonly ISessionDropOffService _dropOffService;
     private readonly ILogger<SessionController> _logger;
 
     public SessionController(
         ISessionService sessionService,
         IAssessmentService assessmentService,
+        ISessionDropOffService dropOffService,
         ILogger<SessionController> logger)
     {
         _sessionService = sessionService;
         _assessmentService = assessmentService;
+        _dropOffService = dropOffService;
         _logger = logger;
     }
 
@@ -332,6 +336,146 @@ public class SessionController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Auto-save failed for session {SessionId}", sessionId);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Pause a session and record drop-off event for recovery.
+    /// Founder explicitly clicks "Save & Exit" or similar action.
+    /// </summary>
+    [HttpPost("{sessionId}/pause")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> PauseSession(
+        string sessionId,
+        [FromBody] object? payload = null)
+    {
+        var founderId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(founderId))
+        {
+            return Unauthorized();
+        }
+
+        var session = await _sessionService.GetSessionAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        if (session.FounderId != founderId)
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            await _dropOffService.PauseSession(sessionId, founderId, "Manual pause via UI");
+
+            _logger.LogInformation(
+                "Session paused by founder: {SessionId}",
+                sessionId);
+
+            return Ok(new { message = "Session paused. You can resume anytime." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to pause session {SessionId}", sessionId);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get drop-off status for a session.
+    /// Returns information about when/why session was paused or abandoned.
+    /// </summary>
+    [HttpGet("{sessionId}/drop-off-status")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetDropOffStatus(string sessionId)
+    {
+        var founderId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(founderId))
+        {
+            return Unauthorized();
+        }
+
+        var session = await _sessionService.GetSessionAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        if (session.FounderId != founderId)
+        {
+            return Forbid();
+        }
+
+        var dropOff = await _dropOffService.GetDropOffStatus(sessionId);
+        if (dropOff == null)
+        {
+            return NotFound(new { message = "No drop-off recorded for this session" });
+        }
+
+        return Ok(new
+        {
+            sessionId = dropOff.SessionId,
+            reason = dropOff.Reason.ToString(),
+            lastActivityAt = dropOff.LastActivityAt,
+            detectedAt = dropOff.CreatedAt
+        });
+    }
+
+    /// <summary>
+    /// Mark a session as abandoned by founder.
+    /// Used when founder explicitly gives up on the diagnostic.
+    /// </summary>
+    [HttpPost("{sessionId}/abandon")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> AbandonSession(
+        string sessionId,
+        [FromBody] AbandonSessionDto? dto = null)
+    {
+        var founderId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(founderId))
+        {
+            return Unauthorized();
+        }
+
+        var session = await _sessionService.GetSessionAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        if (session.FounderId != founderId)
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var reason = dto?.Reason ?? "Founder abandoned diagnostic";
+            await _dropOffService.AbandonSession(sessionId, founderId, reason);
+
+            _logger.LogInformation(
+                "Session abandoned by founder: {SessionId}. Reason: {Reason}",
+                sessionId,
+                reason);
+
+            return Ok(new
+            {
+                message = "Session abandoned. Feel free to reach out if you'd like guidance—no pressure.",
+                sessionId = sessionId
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to abandon session {SessionId}", sessionId);
             return BadRequest(new { message = ex.Message });
         }
     }

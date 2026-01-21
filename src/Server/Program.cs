@@ -100,6 +100,7 @@ builder.Services.AddScoped<IDeckUploadService, DeckUploadService>();
 builder.Services.AddScoped<IDeckAnalysisService, DeckAnalysisService>();
 builder.Services.AddScoped<IRecoveryEmailService, RecoveryEmailService>();
 builder.Services.AddScoped<IDeckAnalysisNotificationService, DeckAnalysisNotificationService>();
+builder.Services.AddScoped<ISessionDropOffService, SessionDropOffService>();
 
 // Deck analysis background job processing
 builder.Services.AddSingleton<IDeckAnalysisJobQueue, DeckAnalysisJobQueue>();
@@ -115,6 +116,9 @@ builder.Services.AddHostedService<DeckAnalysisNotificationProcessor>();
 
 // Session cleanup background job (24h retention policy for incomplete sessions)
 builder.Services.AddHostedService<SessionCleanupJobService>();
+
+// Session inactivity detection background job (5-minute intervals)
+builder.Services.AddHostedService<SessionInactivityDetectionJobService>();
 
 // Add controllers and validation
 builder.Services.AddControllers();
