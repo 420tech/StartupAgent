@@ -55,6 +55,21 @@ public class ApplicationDbContext : DbContext
     /// </summary>
     public DbSet<DeckAnalysisNotification> DeckAnalysisNotifications { get; set; }
 
+    /// <summary>
+    /// Email templates table (transactional template system).
+    /// </summary>
+    public DbSet<EmailTemplate> EmailTemplates { get; set; }
+
+    /// <summary>
+    /// Email template versions table (audit history).
+    /// </summary>
+    public DbSet<EmailTemplateVersion> EmailTemplateVersions { get; set; }
+
+    /// <summary>
+    /// Email template A/B tests table.
+    /// </summary>
+    public DbSet<EmailTemplateABTest> EmailTemplateABTests { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -256,6 +271,75 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.FounderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure EmailTemplate entity
+        modelBuilder.Entity<EmailTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TemplateCode).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Type).IsRequired();
+            entity.Property(e => e.Language).IsRequired();
+            entity.Property(e => e.Subject).IsRequired();
+            entity.Property(e => e.HtmlBody).IsRequired();
+            entity.Property(e => e.PlainTextBody).IsRequired();
+            entity.Property(e => e.Variables).HasMaxLength(1000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Version).HasDefaultValue(1);
+            entity.Property(e => e.ABTestVariant).HasMaxLength(50);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(255).HasDefaultValue("system");
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+            entity.Property(e => e.UpdatedBy).IsRequired().HasMaxLength(255).HasDefaultValue("system");
+            entity.Property(e => e.UpdatedAt);
+            entity.Property(e => e.IsArchived).HasDefaultValue(false);
+
+            // Indexes for fast queries
+            entity.HasIndex(e => new { e.TemplateCode, e.Language });
+            entity.HasIndex(e => new { e.Type, e.IsActive });
+            entity.HasIndex(e => e.ABTestId);
+
+            // Relationship to EmailTemplateVersion
+            entity.HasMany<EmailTemplateVersion>()
+                .WithOne()
+                .HasForeignKey(v => v.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure EmailTemplateVersion entity
+        modelBuilder.Entity<EmailTemplateVersion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TemplateId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Version).IsRequired();
+            entity.Property(e => e.Subject).IsRequired();
+            entity.Property(e => e.HtmlBody).IsRequired();
+            entity.Property(e => e.PlainTextBody).IsRequired();
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => new { e.TemplateId, e.Version });
+        });
+
+        // Configure EmailTemplateABTest entity
+        modelBuilder.Entity<EmailTemplateABTest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TemplateCode).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.ControlVariant).IsRequired().HasMaxLength(50).HasDefaultValue("control");
+            entity.Property(e => e.TestVariants).IsRequired();
+            entity.Property(e => e.WinnerVariant).HasMaxLength(50);
+            entity.Property(e => e.ControlSentCount).HasDefaultValue(0);
+            entity.Property(e => e.VariantSentCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedBy).IsRequired().HasMaxLength(255).HasDefaultValue("system");
+            entity.Property(e => e.CreatedAt).ValueGeneratedOnAdd();
+
+            // Indexes for fast queries
+            entity.HasIndex(e => e.TemplateCode);
+            entity.HasIndex(e => e.IsActive);
         });
     }
 }
